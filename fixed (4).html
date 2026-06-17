@@ -1,0 +1,2608 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経理室 業務システム</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+:root {
+  /* ======== 提出管理の変数 ======== */
+  --sys-ink: #1a1a2e; --sys-ink-mid: #374151; --sys-ink-light: #6b7280; --sys-ink-faint: #9ca3af;
+  --sys-bg: #f8f7f4; --sys-paper: #ffffff; --sys-border: #e5e7eb; --sys-border-dark: #d1d5db;
+  --sys-accent: #2563eb; --sys-accent-light: #eff6ff;
+  --sys-green: #059669; --sys-green-light: #ecfdf5;
+  --sys-red: #dc2626; --sys-amber: #d97706; --sys-amber-light: #fffbeb;
+  
+  /* ======== 封筒システムの変数 ======== */
+  --env-ink: #1a1714; --env-ink-light: #5a544e; --env-ink-faint: #9c958d;
+  --env-paper: #fdfbf7; --env-paper-mid: #f4f1ea; --env-paper-dark: #ebe7de;
+  --env-border: #e3ded8;
+  --env-danger: #dc2626; --env-danger-light: #fef2f2;
+  --env-success: #16a34a; --env-warn: #d97706;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; 
+  background: var(--sys-bg); 
+  color: var(--sys-ink); 
+  height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+}
+
+/* ================================================================
+   共通ナビゲーション
+================================================================ */
+.main-header { background: var(--sys-ink); color: white; display: flex; flex-direction: column; flex-shrink: 0; z-index: 1000; }
+.app-header-top { padding: 0 20px; display: flex; align-items: center; height: 52px; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.app-title { font-size: 15px; font-weight: 700; letter-spacing: 0.05em; }
+.app-subtitle { font-size: 11px; color: rgba(255,255,255,0.5); }
+.header-spacer { flex: 1; }
+.month-selector { display: flex; align-items: center; gap: 8px; transition: opacity 0.2s; }
+.month-selector label { font-size: 12px; color: rgba(255,255,255,0.7); }
+.month-select { padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: inherit; cursor: pointer; }
+.month-select option { background: var(--sys-ink); }
+
+.main-tab-bar { display: flex; padding: 0 16px; background: var(--sys-paper); border-bottom: 1px solid var(--sys-border); flex-shrink: 0; }
+.main-tab { padding: 12px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--sys-ink-light); font-weight: 700; transition: all 0.15s; }
+.main-tab.active { color: var(--sys-accent); border-bottom-color: var(--sys-accent); }
+.main-tab:hover:not(.active) { color: var(--sys-ink); background: rgba(0,0,0,0.02); }
+
+.pages-container { flex: 1; position: relative; overflow: hidden; }
+.page { position: absolute; inset: 0; display: none; overflow: auto; background: var(--sys-bg); }
+.page.active { display: block; }
+#page-envelope.active { display: flex; flex-direction: column; background: #e8e4de; }
+
+/* ================================================================
+   提出管理・会社マスタ CSS
+================================================================ */
+.sys-main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+.summary-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.summary-card { background: var(--sys-paper); border: 1px solid var(--sys-border); border-radius: 10px; padding: 14px 18px; flex: 1; min-width: 140px; }
+.summary-card .label { font-size: 11px; color: var(--sys-ink-light); margin-bottom: 4px; }
+.summary-card .value { font-size: 26px; font-weight: 700; }
+.summary-card .sub { font-size: 11px; color: var(--sys-ink-faint); margin-top: 2px; }
+.card-blue .value { color: var(--sys-accent); }
+.card-green .value { color: var(--sys-green); }
+.card-amber .value { color: var(--sys-amber); }
+
+.submit-groups { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .submit-groups { grid-template-columns: 1fr; } }
+
+.submit-group { background: var(--sys-paper); border: 1px solid var(--sys-border); border-radius: 10px; overflow: hidden; }
+.group-head { padding: 10px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--sys-border); }
+.group-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.group-icon.tax { background: #dbeafe; }
+.group-icon.pref { background: #d1fae5; }
+.group-icon.city { background: #fef3c7; }
+.group-icon.etax { background: #ede9fe; }
+.group-title { font-size: 13px; font-weight: 700; flex: 1; }
+.group-badge { font-size: 11px; font-weight: 700; color: white; background: var(--sys-ink-faint); border-radius: 10px; padding: 2px 8px; }
+
+.dest-block { border-bottom: 1px solid var(--sys-border); }
+.dest-block:last-child { border-bottom: none; }
+.dest-label { padding: 6px 14px; font-size: 11px; font-weight: 700; color: var(--sys-ink-light); background: var(--sys-bg); display: flex; justify-content: space-between; align-items: center; }
+.dest-companies { padding: 4px 0; }
+.company-row { padding: 7px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 0.1s; }
+.company-row:hover { background: var(--sys-bg); }
+.company-row.done { opacity: 0.45; }
+.company-row.done .co-name { text-decoration: line-through; }
+.co-check { width: 18px; height: 18px; border: 2px solid var(--sys-border-dark); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.co-check.checked { background: var(--sys-green); border-color: var(--sys-green); }
+.co-check.checked::after { content: '✓'; color: white; font-size: 11px; font-weight: 700; }
+.co-name { font-size: 13px; flex: 1; }
+.co-staff { font-size: 11px; color: var(--sys-ink-faint); }
+.co-note { font-size: 10px; color: var(--sys-amber); background: var(--sys-amber-light); padding: 1px 5px; border-radius: 3px; }
+
+.group-actions { padding: 8px 14px; border-top: 1px solid var(--sys-border); display: flex; gap: 8px; }
+.sys-btn-sm { font-size: 11px; padding: 4px 10px; border: 1px solid var(--sys-border-dark); border-radius: 5px; background: white; cursor: pointer; font-family: inherit; color: var(--sys-ink-mid); }
+.sys-btn-sm:hover { background: var(--sys-bg); }
+.btn-print-env { padding:5px 12px; font-size:11px; font-weight:700; border:none; border-radius:6px; color:white; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.btn-print-env:hover { opacity:0.85; }
+.group-print-bar { padding:8px 14px; border-top:1px solid var(--sys-border); display:flex; gap:6px; align-items:center; flex-wrap:wrap; background:var(--sys-bg); }
+.print-bar-label { font-size:11px; color:var(--sys-ink-faint); margin-right:4px; }
+
+.company-master { background: var(--sys-paper); border: 1px solid var(--sys-border); border-radius: 10px; overflow: hidden; }
+.master-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--sys-border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.master-toolbar h2 { font-size: 14px; font-weight: 700; flex: 1; }
+.sys-btn-primary { padding: 7px 14px; background: var(--sys-accent); color: white; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.sys-btn-primary:hover { background: #1d4ed8; }
+.sys-btn-secondary { padding: 7px 14px; background: white; color: var(--sys-ink-mid); border: 1px solid var(--sys-border-dark); border-radius: 7px; font-size: 12px; cursor: pointer; font-family: inherit; }
+.sys-search-box { padding: 7px 10px; border: 1px solid var(--sys-border-dark); border-radius: 7px; font-size: 12px; font-family: inherit; width: 180px; }
+
+.master-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.master-table th { padding: 8px 10px; background: var(--sys-bg); border-bottom: 1px solid var(--sys-border); text-align: left; font-weight: 600; color: var(--sys-ink-mid); white-space: nowrap; }
+.master-table td { padding: 6px 10px; border-bottom: 1px solid var(--sys-border); vertical-align: middle; }
+.master-table tr:hover td { background: #fafafa; }
+.master-table th.sortable { cursor: pointer; user-select: none; }
+.master-table th.sortable:hover { background: #e5e7eb; }
+.sort-arrow { margin-left: 4px; font-size: 10px; color: var(--sys-ink-faint); }
+.sort-arrow.asc::after { content: '▲'; color: var(--sys-accent); }
+.sort-arrow.desc::after { content: '▼'; color: var(--sys-accent); }
+.sort-arrow.none::after { content: '⇅'; }
+.month-dots { display: flex; gap: 2px; flex-wrap: wrap; }
+.mdot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+.mdot.on { background: var(--sys-accent); color: white; }
+.mdot.off { background: var(--sys-border); color: var(--sys-ink-faint); }
+.mdot.cur { background: var(--sys-amber); color: white; }
+
+.dest-tag { font-size: 10px; padding: 2px 5px; border-radius: 3px; font-weight: 500; white-space: nowrap; display: inline-block; margin: 1px; }
+.dest-tag.tax { background: #dbeafe; color: #1e40af; }
+.dest-tag.pref { background: #d1fae5; color: #065f46; }
+.dest-tag.city { background: #fef3c7; color: #92400e; }
+.dest-tag.etax { background: #ede9fe; color: #5b21b6; }
+
+.sys-btn-edit { padding: 3px 7px; font-size: 11px; border: 1px solid var(--sys-border-dark); border-radius: 4px; background: white; cursor: pointer; font-family: inherit; }
+.sys-btn-del { padding: 3px 7px; font-size: 11px; border: 1px solid #fecaca; border-radius: 4px; background: white; color: var(--sys-red); cursor: pointer; font-family: inherit; }
+
+/* ================================================================
+   封筒システム CSS
+================================================================ */
+.env-header { background: var(--env-ink); color: #fff; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 48px; flex-shrink: 0; }
+.env-header-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.env-header-actions { display: flex; gap: 6px; align-items: center; }
+.env-size-btn { padding: 5px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; background: transparent; color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.env-size-btn.active { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.6); }
+.env-size-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.env-divider-v { width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 2px; }
+.env-print-btn { padding: 5px 14px; background: #fff; color: var(--env-ink); border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.env-print-btn:hover { opacity: 0.85; }
+.env-print-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.env-app { display: grid; grid-template-columns: 80px 300px 1fr; flex: 1; min-height: 0; }
+.env-group-tabs { background: var(--env-ink); border-right: 1px solid var(--env-border); display: flex; flex-direction: column; align-items: stretch; padding: 8px 6px; gap: 6px; overflow-y: auto; flex-shrink: 0; }
+.env-tab-item { background: transparent; color: rgba(255, 255, 255, 0.65); border: none; border-radius: 6px; padding: 8px 4px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: all 0.15s; line-height: 1.3; text-align: center; }
+.env-tab-item:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.env-tab-item.active { background: var(--env-paper); color: var(--env-ink); }
+.env-tab-count { font-size: 9px; margin-top: 3px; font-weight: 400; background: rgba(0, 0, 0, 0.3); color: rgba(255, 255, 255, 0.8); padding: 1px 7px; border-radius: 10px; }
+.env-tab-item.active .env-tab-count { background: rgba(0, 0, 0, 0.06); color: var(--env-ink-faint); }
+
+.env-panel-left { background: var(--env-paper); border-right: 1px solid var(--env-border); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+/* ── 同期ステータスバッジ ── */
+.cloud-status-badge { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: bold; padding: 6px 12px; border-radius: 6px; margin: 4px 12px; flex-shrink: 0;}
+.cloud-status-local { background: #f1f5f9; color: var(--sys-ink-light); border: 1px solid #e2e8f0; }
+.cloud-status-online { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.cloud-status-loading { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; animation: pulse 1.5s infinite ease-in-out; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.env-search-area { padding: 12px; border-bottom: 1px solid var(--env-border); flex-shrink: 0; }
+.env-search-wrap { position: relative; }
+.env-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--env-ink-faint); pointer-events: none; font-size: 14px; }
+.env-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--env-ink-faint); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 4px; display: none; background: none; border: none; font-family: inherit; }
+.env-search-clear:hover { color: var(--env-ink); background: var(--env-paper-dark); }
+.env-search-box { width: 100%; padding: 9px 30px 9px 32px; border: 1px solid var(--env-border); border-radius: 8px; background: #fff; font-size: 13px; font-family: inherit; color: var(--env-ink); outline: none; }
+.env-search-box:focus { border-color: var(--env-ink); }
+.env-list-meta { padding: 6px 12px 2px; font-size: 11px; color: var(--env-ink-faint); flex-shrink: 0; }
+.env-addr-list { flex: 1; overflow-y: auto; }
+.env-addr-item { padding: 11px 14px; border-bottom: 1px solid var(--env-paper-dark); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.1s; }
+.env-group-header { padding: 6px 14px 5px; font-size: 10px; font-weight: 700; color: var(--env-ink-light); background: var(--env-paper-dark); border-bottom: 1px solid var(--env-paper-dark); letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1; cursor: pointer; user-select: none; }
+.env-group-header:hover { background: #ddd; }
+.env-group-chevron { font-size: 10px; transition: transform 0.2s; display: inline-block; margin-right: 5px; }
+.env-group-chevron.collapsed { transform: rotate(-90deg); }
+.env-group-count-badge { background: var(--env-ink-faint); color: white; border-radius: 8px; padding: 1px 6px; font-size: 9px; font-weight: 700; }
+.env-group-items.collapsed { display: none; }
+.env-addr-item:hover { background: var(--env-paper-mid); }
+.env-addr-item.selected { background: var(--env-ink); color: #fff; }
+
+.env-favorite-btn { cursor: pointer; color: #cbd5e1; font-size: 16px; margin-right: 6px; transition: all 0.2s; user-select: none; display: inline-block; }
+.env-favorite-btn:hover { transform: scale(1.15); }
+.env-favorite-btn.active { color: #fbbf24; }
+.env-addr-item.selected .env-favorite-btn { color: rgba(255,255,255,0.3); }
+.env-addr-item.selected .env-favorite-btn.active { color: #fcd34d; }
+
+.env-addr-item .env-item-name { font-size: 15px; font-weight: 700; display: flex; align-items: center; }
+.env-addr-item .env-item-sub { font-size: 12px; color: var(--env-ink-faint); margin-top: 2px; }
+.env-addr-item.selected .env-item-sub { color: rgba(255,255,255,0.55); }
+
+.env-addr-item.multi-checked { background: #e8f0fe; }
+.env-addr-item.multi-checked .env-item-name { color: #1a56db; }
+.env-select-toolbar { display:none; padding: 8px 12px; background: #1a56db; gap: 8px; align-items: center; flex-shrink: 0; }
+.env-select-toolbar.active { display: flex; }
+.env-select-toolbar-label { color: #fff; font-size: 12px; font-weight: 700; flex: 1; }
+.env-btn-select-all { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.6); border-radius: 6px; background: transparent; color: #fff; font-size: 11px; cursor: pointer; font-family: inherit; }
+.env-btn-select-all:hover { background: rgba(255,255,255,0.15); }
+.env-btn-delete-sel { padding: 5px 10px; border: none; border-radius: 6px; background: #e53e3e; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.env-btn-delete-sel:hover { background: #c53030; }
+.env-btn-delete-sel:disabled { opacity: 0.4; cursor: default; }
+.env-btn-cancel-sel { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.6); border-radius: 6px; background: transparent; color: #fff; font-size: 11px; cursor: pointer; font-family: inherit; }
+.env-btn-cancel-sel:hover { background: rgba(255,255,255,0.15); }
+.env-btn-merge { padding: 5px 10px; border: none; border-radius: 6px; background: #2f855a; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.env-btn-merge:hover { background: #276749; }
+.env-btn-merge:disabled { opacity: 0.4; cursor: default; }
+.env-btn-multisel { padding: 5px 10px; border: 1px solid var(--env-border); border-radius: 6px; background: #fff; font-size: 11px; cursor: pointer; font-family: inherit; color: var(--env-ink); margin-bottom: 0; }
+.env-btn-multisel:hover { background: var(--env-paper-dark); }
+.env-item-checkbox { width: 16px; height: 16px; margin-right: 10px; cursor: pointer; flex-shrink: 0; accent-color: #1a56db; }
+.env-addr-item .env-item-arrow { color: var(--env-ink-faint); flex-shrink: 0; }
+.env-addr-item.selected .env-item-arrow { color: rgba(255,255,255,0.4); }
+.env-empty-list { padding: 40px 16px; text-align: center; color: var(--env-ink-faint); font-size: 13px; line-height: 1.9; }
+.env-bottom-bar { padding: 10px 12px; border-top: 1px solid var(--env-border); flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
+.env-btn-add { width: 100%; padding: 9px; background: var(--env-ink); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.env-btn-add:hover { opacity: 0.85; }
+.env-data-actions { display: flex; gap: 6px; }
+.env-btn-data { flex: 1; padding: 7px; border: 1px solid var(--env-border); border-radius: 7px; background: var(--env-paper-mid); font-size: 11px; font-weight: 500; cursor: pointer; color: var(--env-ink-light); font-family: inherit; }
+.env-btn-data:hover { background: var(--env-paper-dark); }
+
+.env-panel-right { display: flex; flex-direction: column; background: #d0ccc6; overflow: hidden; height: 100%; position: relative; }
+.env-preview-bar { padding: 8px 16px; background: var(--env-paper); border-bottom: 1px solid var(--env-border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; height: 44px; }
+.env-preview-label { font-size: 12px; font-weight: 700; color: var(--env-ink-light); display: flex; align-items: center; gap: 8px; }
+.env-preview-size-badge { background: var(--env-ink); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+.env-btn-edit { padding: 6px 14px; border: 1px solid var(--env-border); border-radius: 6px; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--env-ink); font-family: inherit; display: none; }
+.env-btn-edit:hover { background: var(--env-paper-mid); }
+.env-preview-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+
+/* ── 封筒の描画 ── */
+#envelopeScaler { transform-origin: center center; display: flex; align-items: center; justify-content: center; }
+.envelope { background: white !important; position: relative; font-family: 'Noto Serif JP', serif; color: black !important; box-shadow: 0 8px 40px rgba(0,0,0,0.35); box-sizing: border-box; }
+.size-kaku2 { width: 240mm; height: 332mm; }
+.size-kaku2 .zip { position: absolute; top: 15mm; right: 20mm; font-size: 24pt; letter-spacing: 2mm; font-family: 'Noto Sans JP', sans-serif; }
+.size-kaku2 .address { position: absolute; top: 45mm; right: 20mm; writing-mode: vertical-rl; font-size: 22pt; line-height: 1.7; max-height: 260mm; }
+.size-kaku2 .address .num { text-combine-upright: all; }
+.size-naga3 .address .num { text-combine-upright: all; }
+.size-kaku2 .name-area { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; flex-direction: row-reverse; padding-top: 55mm; }
+.size-kaku2 .name-area.reply-mode { padding-top: 85mm; }
+.size-naga3 .name-area.reply-mode { padding-top: 55mm; }
+.size-kaku2 .migi-gaki { writing-mode: vertical-rl; font-size: 16pt; margin-left: 28mm; line-height: 1.5; }
+.size-kaku2 .name-single-line { writing-mode: vertical-rl; display: block; text-align: center; position: absolute; left: 50%; transform: translateX(-50%); }
+.size-kaku2 .name { font-size: 42pt; font-weight: 700; letter-spacing: 0.4em; display: inline; }
+.size-kaku2 .keisho { font-size: 24pt; display: inline; margin-top: 10mm; letter-spacing: normal; }
+
+.sender-area { font-family: 'Noto Serif JP', serif; border: 1.5px solid #222; border-radius: 3mm; padding: 3mm 6mm; text-align: center; color: #111; background: white; white-space: nowrap; }
+.sender-org { font-size: 17pt; font-weight: 700; letter-spacing: 0.35em; display: block; margin-bottom: 2.5mm; }
+.sender-info { font-family: 'Noto Sans JP', sans-serif; font-size: 10.5pt; display: block; line-height: 1.8; letter-spacing: 0.02em; color: #222; }
+.size-kaku2 .sender-area { position: absolute; bottom: 14mm; left: 50%; transform: translateX(-50%); }
+.size-naga3 .sender-area { position: absolute; bottom: 13mm; left: 50%; transform: translateX(-50%); }
+.size-naga3 .sender-org  { font-size: 13pt; letter-spacing: 0.25em; margin-bottom: 1.5mm; }
+.size-naga3 .sender-info { font-size: 8pt; }
+
+.size-naga3 { width: 120mm; height: 235mm; }
+.size-naga3 .zip { position: absolute; top: 13.5mm; right: 7.5mm; display: flex; flex-direction: row; align-items: flex-end; justify-content: flex-end; font-family: 'Noto Sans JP', sans-serif; font-size: 14pt; font-weight: 700; line-height: 1; }
+.size-naga3 .zip-digit { width: 6.8mm; text-align: center; display: inline-block; transform: scaleX(0.84); transform-origin: center center; }
+.size-naga3 .zip-hyphen { display: none; }
+.size-naga3 .address { position: absolute; top: 32mm; right: 12mm; writing-mode: vertical-rl; font-size: 15pt; line-height: 1.6; max-height: 180mm; }
+.size-naga3 .name-area { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; flex-direction: row-reverse; padding-top: 30mm; padding-left: 10mm; padding-right: 10mm; }
+.size-naga3 .migi-gaki { writing-mode: vertical-rl; font-size: 11pt; margin-left: 22mm; line-height: 1.4; }
+.size-naga3 .name-single-line { writing-mode: vertical-rl; display: block; text-align: center; position: absolute; left: 50%; transform: translateX(-50%); }
+.size-naga3 .name { font-size: 28pt; font-weight: 700; letter-spacing: 0.3em; display: inline; }
+.size-naga3 .keisho { font-size: 16pt; display: inline; margin-top: 6mm; letter-spacing: normal; }
+
+.size-lpack { width: 210mm; height: 297mm; background: white; font-family: 'Noto Sans JP', sans-serif; }
+.lp-label { position: absolute; top: 72mm; left: 25mm; width: 160mm; height: 151mm; border: 2px solid #111; overflow: hidden; }
+.lp-zip-area { position: absolute; top: 42mm; left: 101mm; display: flex; align-items: center; gap: 2mm; }
+.lp-zip-box { width: 10mm; height: 13mm; border: 2px solid #c00; display: flex; align-items: center; justify-content: center; font-size: 11pt; font-weight: 700; color: var(--env-ink); font-family: 'Noto Sans JP', sans-serif; }
+.lp-zip-hyphen { font-size: 9pt; color: #c00; margin: 0; font-weight: 700; }
+.lp-to-sidebar { position: absolute; top: 0; left: 0; width: 35mm; height: 68mm; background: #2255aa; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; }
+.lp-to-sidebar-label { color: white; font-size: 8.5pt; font-weight: 700; letter-spacing: .08em; font-family: 'Noto Sans JP', sans-serif; }
+.lp-to-sidebar-to   { color: white; font-size: 22pt; font-weight: 700; font-style: italic; line-height: 1; }
+.lp-to-sidebar-arrow{ color: white; font-size: 22pt; line-height: 1; }
+.lp-from-sidebar { position: absolute; top: 68mm; left: 0; width: 35mm; height: 53mm; background: #aabbd4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5mm; }
+.lp-from-sidebar-label { color: #111; font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; font-family: 'Noto Sans JP', sans-serif; }
+.lp-from-sidebar-from  { color: #111; font-size: 18pt; font-weight: 900; font-style: italic; line-height: 1; }
+.lp-hline-to   { position: absolute; top: 68mm;  left: 0; right: 0; height: 0; border-top: 2px solid #111; }
+.lp-hline-hinm { position: absolute; top: 121mm; left: 0; right: 0; height: 0; border-top: 2px solid #111; }
+.lp-fl { position: absolute; font-size: 8pt; font-weight: 700; color: #111; font-family: 'Noto Sans JP', sans-serif; line-height: 1.1; }
+.lp-fl-en { font-style: normal; color: #555; font-weight: 400; font-size: 7.5pt; }
+.lp-to-addr-label { top: 2mm; left: 37mm; }
+.lp-to-addr-line1 { position: absolute; top: 0mm; left: 37mm; right: 2mm; border-bottom: 1px dashed #999; height: 19mm; font-size: 12.5pt; color: var(--env-ink); padding: 0 2mm 1.5mm 24mm; display: flex; align-items: flex-end; overflow: hidden; font-family: 'Noto Sans JP', sans-serif; }
+.lp-to-addr-line2 { position: absolute; top: 19mm; left: 37mm; right: 2mm; border-bottom: 1px dashed #999; height: 19mm; font-size: 12.5pt; color: var(--env-ink); padding: 0 2mm 1.5mm 0; display: flex; align-items: flex-end; overflow: hidden; font-family: 'Noto Sans JP', sans-serif; }
+.lp-to-name-label { top: 39mm; left: 37mm; }
+.lp-to-name-line  { position: absolute; top: 38mm; left: 37mm; right: 2mm; border-bottom: 1px dashed #999; height: 19mm; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 2mm 1.5mm 24mm; font-family: 'Noto Serif JP', serif; }
+.lp-to-name-txt   { font-size: 21pt; font-weight: 700; }
+.lp-to-keisho-txt { font-size: 16pt; align-self: flex-end; margin-bottom: 0mm; }
+.lp-to-tel-label { top: 58mm; left: 37mm; }
+.lp-to-tel-line  { position: absolute; top: 57mm; left: 65mm; right: 2mm; border-bottom: none; height: 11mm; font-size: 12.5pt; color: var(--env-ink); padding: 0 2mm 1mm 0; display: flex; align-items: flex-end; font-family: 'Noto Sans JP', sans-serif; }
+.lp-from-addr-label { top: 70mm; left: 37mm; }
+.lp-from-zip-row { position: absolute; top: 70.5mm; left: 52mm; display: flex; align-items: center; gap: 1mm; }
+.lp-from-zip-box { width: 4.5mm; height: 6mm; border: 1.5px solid #555; display: flex; align-items: center; justify-content: center; font-size: 10pt; font-weight: 700; font-family: 'Noto Sans JP', sans-serif; }
+.lp-from-zip-hyph { font-size: 8pt; color: #555; margin: 0; }
+.lp-from-addr-line1 { position: absolute; top: 68mm; left: 37mm; right: 2mm; border-bottom: 1px dashed #999; height: 15mm; font-size: 12pt; color: var(--env-ink); padding: 0 2mm 1mm 0; display: flex; align-items: flex-end; overflow: hidden; font-family: 'Noto Sans JP', sans-serif; }
+.lp-from-addr-line2 { position: absolute; top: 83mm; left: 37mm; right: 2mm; border-bottom: 1px dashed #999; height: 13mm; font-size: 12pt; color: var(--env-ink); padding: 0 2mm 1mm 0; display: flex; align-items: flex-end; overflow: hidden; font-family: 'Noto Sans JP', sans-serif; }
+.lp-from-name-label { top: 101mm; left: 37mm; }
+.lp-from-name-line  { position: absolute; top: 96mm; left: 37mm; right: 2mm; border-bottom: 1px dashed #999; height: 14mm; font-size: 14pt; font-weight: 700; color: var(--env-ink); padding: 0 2mm 1.5mm 24mm; display: flex; align-items: flex-end; font-family: 'Noto Serif JP', serif; }
+.lp-from-tel-label { top: 114mm; left: 37mm; }
+.lp-from-tel-line  { position: absolute; top: 110mm; left: 65mm; right: 2mm; border-bottom: none; height: 11mm; font-size: 12.5pt; color: var(--env-ink); padding: 0 2mm 1mm 0; display: flex; align-items: flex-end; font-family: 'Noto Sans JP', sans-serif; }
+.lp-hinmei-area { position: absolute; top: 123mm; left: 37mm; right: 2mm; }
+.lp-hinmei-title { font-size: 9pt; font-weight: 700; color: #111; font-family: 'Noto Sans JP', sans-serif; }
+.lp-hinmei-warn  { font-size: 7.5pt; color: #111; margin-top: 1mm; font-family: 'Noto Sans JP', sans-serif; line-height: 1.5; }
+.lp-hinmei-cash  { color: #c00; font-weight: 700; }
+.lp-hinmei-line  { border-bottom: 1px solid #aaa; min-height: 7mm; margin-top: 2mm; }
+
+/* ================================================================
+   モーダル共通
+================================================================ */
+.sys-modal-overlay, .env-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; }
+.sys-modal-overlay.open, .env-modal-overlay.is-open { display: flex; }
+.sys-modal-box, .env-modal-box { background: white; border-radius: 12px; padding: 24px; width: 540px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); display: flex; flex-direction: column; }
+.env-modal-box { padding: 0; }
+.env-modal-box.narrow { width: 460px; }
+.env-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; flex-shrink: 0; }
+.env-modal-header h2 { font-size: 15px; font-weight: 700; color: var(--env-ink); margin: 0; }
+.env-modal-close-btn { background: var(--env-paper-mid); border: none; font-size: 16px; cursor: pointer; color: var(--env-ink-light); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.env-modal-close-btn:hover { background: var(--env-paper-dark); }
+.env-modal-body { padding: 4px 22px 18px; overflow-y: auto; flex: 1; }
+.env-modal-footer { border-top: 1px solid var(--env-border); padding: 14px 22px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; background: var(--env-paper); flex-shrink: 0; }
+
+.sys-modal-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.sys-form-row { margin-bottom: 12px; }
+.sys-form-row label { display: block; font-size: 11px; font-weight: 600; color: var(--sys-ink-mid); margin-bottom: 4px; }
+.sys-form-input, .sys-form-select { width: 100%; padding: 7px 10px; border: 1px solid var(--sys-border-dark); border-radius: 7px; font-size: 13px; font-family: inherit; }
+.sys-form-input:focus, .sys-form-select:focus { outline: none; border-color: var(--sys-accent); }
+.month-grid { display: grid; grid-template-columns: repeat(12,1fr); gap: 4px; }
+.mcb-label { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; font-size: 10px; color: var(--sys-ink-mid); }
+.mcb { width: 16px; height: 16px; accent-color: var(--sys-accent); }
+.sys-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.sys-btn-save { padding: 9px 20px; background: var(--sys-accent); color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.sys-btn-cancel { padding: 9px 20px; background: white; color: var(--sys-ink-mid); border: 1px solid var(--sys-border-dark); border-radius: 7px; font-size: 13px; cursor: pointer; font-family: inherit; }
+
+.env-section-label { font-size: 10px; font-weight: 700; color: var(--env-ink-faint); letter-spacing: 0.1em; padding: 10px 0 6px; border-bottom: 1px solid var(--env-border); margin-bottom: 12px; }
+.env-form-row2 { display: grid; grid-template-columns: 1fr 130px; gap: 12px; margin-bottom: 12px; }
+.env-form-group { margin-bottom: 12px; }
+.env-form-group label { display: flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 700; margin-bottom: 5px; color: var(--env-ink-light); }
+.env-form-group label .req { color: var(--env-danger); font-size: 10px; }
+.env-form-group label .tip { color: var(--env-ink-faint); font-weight: 400; font-size: 10px; }
+.env-form-input, .env-form-select { width: 100%; padding: 9px 12px; border: 1px solid var(--env-border); border-radius: 8px; background: #fff; font-size: 13px; color: var(--env-ink); outline: none; font-family: inherit; transition: border-color 0.15s; }
+.env-form-input:focus, .env-form-select:focus { border-color: var(--env-ink); box-shadow: 0 0 0 3px rgba(26,23,20,0.08); }
+.env-form-input.is-error { border-color: var(--env-danger); }
+.env-field-error { font-size: 11px; color: var(--env-danger); margin-top: 4px; min-height: 1em; }
+.env-field-hint { font-size: 11px; color: var(--env-ink-faint); margin-top: 4px; }
+.env-zip-row { display: flex; gap: 8px; }
+.env-zip-row .env-form-input { flex: 1; }
+.env-btn-zip { padding: 9px 12px; border: 1px solid var(--env-border); border-radius: 8px; background: var(--env-paper-mid); font-size: 12px; font-weight: 700; cursor: pointer; color: var(--env-ink); white-space: nowrap; font-family: inherit; flex-shrink: 0; }
+.env-btn-zip:hover { background: var(--env-paper-dark); }
+.env-btn-zip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.env-btn-cancel { background: #fff; color: var(--env-ink); border: 1px solid var(--env-border); border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.env-btn-cancel:hover { background: var(--env-paper-mid); }
+.env-btn-save { background: var(--env-ink); color: #fff; border: none; border-radius: 8px; padding: 9px 24px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.env-btn-save:hover { opacity: 0.85; }
+.env-btn-danger { background: none; border: 1px solid var(--env-danger); color: var(--env-danger); border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; margin-right: auto; }
+.env-btn-danger:hover { background: var(--env-danger-light); }
+
+.env-history-list { display: flex; flex-direction: column; }
+.env-history-item { padding: 12px 22px; border-bottom: 1px solid var(--env-paper-dark); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.1s; }
+.env-history-item:hover { background: var(--env-paper-mid); }
+.env-history-date { font-size: 11px; color: var(--env-ink-faint); margin-bottom: 4px; }
+.env-history-name { font-size: 14px; font-weight: 700; color: var(--env-ink); }
+.env-history-size { font-size: 11px; background: var(--env-paper-dark); padding: 2px 8px; border-radius: 4px; color: var(--env-ink-light); font-weight: 700; }
+.env-history-empty { padding: 40px; text-align: center; color: var(--env-ink-faint); font-size: 13px; }
+
+/* 共通トースト */
+#toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: var(--sys-ink); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.25); pointer-events: auto; display: flex; align-items: center; gap: 8px; animation: toastIn 0.25s ease; }
+.toast.success { background: var(--sys-green); }
+.toast.error { background: var(--sys-red); }
+.toast.warn { background: var(--sys-amber); }
+@keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+
+#csvFileInput { display: none; }
+
+/* ================================================================
+   印刷用スタイル
+================================================================ */
+@media print {
+  @page { margin: 0; }
+  html, body { height: auto !important; overflow: visible !important; background: white !important; display: block !important; }
+  .pages-container { display: block !important; height: auto !important; overflow: visible !important; }
+
+  .main-header, .main-tab-bar, .sys-modal-overlay, .env-modal-overlay, #toastContainer, #envLinkInfo { display: none !important; }
+  
+  #page-submit, #page-master { display: none !important; }
+  #page-envelope { display: block !important; position: static !important; height: auto !important; overflow: visible !important; }
+  
+  .env-header, .env-group-tabs, .env-panel-left, .env-preview-bar { display: none !important; }
+  .env-app, .env-panel-right, .env-preview-area { display: block !important; padding: 0 !important; background: white !important; overflow: visible !important; height: auto !important; }
+  
+  #envelopeScaler { transform: none !important; position: absolute; top: 0; left: 0; display: block; margin: 0 !important; }
+  .envelope { box-shadow: none !important; margin: 0 !important; }
+  
+  .lp-zip-area, .lp-to-sidebar, .lp-from-sidebar, .lp-to-addr-line1, .lp-to-addr-line2, .lp-to-name-line, .lp-to-tel-line, .lp-from-zip-row, .lp-from-addr-line1, .lp-from-addr-line2, .lp-from-name-line, .lp-from-tel-line {
+    display: flex !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="main-header">
+  <div class="app-header-top">
+    <div>
+      <div class="app-title">経理室 業務システム</div>
+      <div class="app-subtitle">西東京商工会</div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="month-selector" id="globalMonthSelector">
+      <label>対象月</label>
+      <select class="month-select" id="submitMonth" onchange="onMonthChange()">
+        <option value="1">1月提出（11月決算）</option>
+        <option value="2">2月提出（12月決算）</option>
+        <option value="3">3月提出（1月決算）</option>
+        <option value="4">4月提出（2月決算）</option>
+        <option value="5" selected>5月提出（3月決算）</option>
+        <option value="6">6月提出（4月決算）</option>
+        <option value="7">7月提出（5月決算）</option>
+        <option value="8">8月提出（6月決算）</option>
+        <option value="9">9月提出（7月決算）</option>
+        <option value="10">10月提出（8月決算）</option>
+        <option value="11">11月提出（9月決算）</option>
+        <option value="12">12月提出（10月決算）</option>
+      </select>
+    </div>
+  </div>
+  <div class="main-tab-bar">
+    <div class="main-tab active" id="tab-submit" onclick="switchTab('submit')">📋 申告書提出管理</div>
+    <div class="main-tab" id="tab-master" onclick="switchTab('master')">🏢 会社マスタ</div>
+    <div class="main-tab" id="tab-envelope" onclick="switchTab('envelope')">📮 封筒宛名書システム</div>
+  </div>
+</div>
+
+<div class="pages-container">
+
+  <!-- ==========================================
+       提出管理 タブ
+  ========================================== -->
+  <div class="page active" id="page-submit">
+    <div class="sys-main">
+      <div class="summary-row" id="summaryRow"></div>
+      <div class="submit-groups" id="submitGroups"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       会社マスタ タブ
+  ========================================== -->
+  <div class="page" id="page-master">
+    <div class="sys-main">
+      <div class="company-master">
+        <div class="master-toolbar">
+          <h2>会社マスタ <span id="masterCount" style="font-size:12px;color:var(--sys-ink-faint);font-weight:400;"></span></h2>
+          <input type="text" class="sys-search-box" id="masterSearch" placeholder="🔍 会社名で検索" oninput="renderMaster()">
+          <button class="sys-btn-secondary" onclick="openImport()">📥 一括追加</button>
+          <button class="sys-btn-primary" onclick="openAdd()">＋ 追加</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="master-table">
+            <thead>
+              <tr>
+                <th class="sortable" onclick="sortMaster('name')">会社名<span class="sort-arrow none" id="sort-name"></span></th>
+                <th class="sortable" onclick="sortMaster('month')">決算月<span class="sort-arrow none" id="sort-month"></span></th>
+                <th class="sortable" onclick="sortMaster('tax')">税務署<span class="sort-arrow none" id="sort-tax"></span></th>
+                <th>都税事務所</th><th>市区町村</th><th>電子</th><th>備考</th>
+                <th class="sortable" onclick="sortMaster('staff')">担当<span class="sort-arrow none" id="sort-staff"></span></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="masterBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       封筒宛名書システム タブ
+  ========================================== -->
+  <div class="page" id="page-envelope">
+    <div class="env-header">
+      <div class="env-header-title">📮 封筒宛名書システム</div>
+      <div class="env-header-actions">
+        <button class="env-size-btn active" id="btnKaku2" onclick="changeSize('kaku2')">角形2号</button>
+        <button class="env-size-btn" id="btnNaga3" onclick="changeSize('naga3')">長形3号</button>
+        <button class="env-size-btn" id="btnLpack" onclick="changeSize('lpack')">レターパックライト</button>
+        <div class="env-divider-v"></div>
+        <button class="env-size-btn" onclick="openHistoryModal()">履歴</button>
+        <div class="env-divider-v"></div>
+        <button class="env-size-btn" onclick="selectGroupTab('差出人')">差出人設定</button>
+        <div class="env-divider-v"></div>
+        <button class="env-print-btn" id="printBtn" onclick="executePrint()" disabled>🖨 印刷</button>
+      </div>
+    </div>
+
+    <div class="env-app">
+      <div class="env-group-tabs" id="envGroupTabs"></div>
+
+      <div class="env-panel-left">
+        <!-- 同期ステータスバッジ -->
+        <div id="cloudStatusBadge" class="cloud-status-badge cloud-status-local" style="justify-content:space-between;">
+          <span>💻 ローカル保存（スプレッドシート未接続）</span>
+          <button id="syncNowBtn" onclick="loadEnvEntriesWithCloudCheck()" style="display:none; padding:2px 8px; font-size:10px; border:1px solid rgba(0,0,0,0.15); border-radius:4px; background:rgba(255,255,255,0.6); cursor:pointer; font-family:inherit; white-space:nowrap;">🔄 今すぐ同期</button>
+        </div>
+        <div class="env-search-area">
+          <div class="env-search-wrap">
+            <span class="env-search-icon">🔍</span>
+            <input type="text" id="envSearchInput" class="env-search-box" placeholder="名前・住所で検索..." oninput="onSearchInput()">
+            <button class="env-search-clear" id="envSearchClear" onclick="clearSearch()" title="クリア">✕</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:4px 12px 2px;gap:6px;flex-shrink:0;">
+          <div class="env-list-meta" id="envListMeta" style="flex:1;padding:0;"></div>
+          <button class="env-btn-multisel" id="btnMultiSel" onclick="enterSelectMode()">☑ 選択</button>
+        </div>
+        <div class="env-select-toolbar" id="selectToolbar">
+          <span class="env-select-toolbar-label" id="selectCount">0件選択中</span>
+          <button class="env-btn-select-all" onclick="selectAllVisible()">全選択</button>
+          <button class="env-btn-merge" id="btnMergeSel" onclick="mergeSelected()" disabled>封筒にまとめる</button>
+          <button class="env-btn-delete-sel" id="btnDeleteSel" onclick="deleteSelected()" disabled>削除</button>
+          <button class="env-btn-cancel-sel" onclick="exitSelectMode()">✕</button>
+        </div>
+        <div class="env-addr-list" id="envAddrList"></div>
+        <div class="env-bottom-bar">
+          <button class="env-btn-add" onclick="openEntryModal()">＋ 新規登録</button>
+          <div class="env-data-actions" style="margin-bottom: 4px;">
+            <button class="env-btn-data" onclick="envExportCSV()">↑ CSV書出し</button>
+            <button class="env-btn-data" onclick="document.getElementById('csvFileInput').click()">↓ CSV読込み</button>
+            <input type="file" id="csvFileInput" accept=".csv" onchange="envImportCSV(event)">
+          </div>
+          <!-- 同期設定画面を開くための新規ボタン -->
+          <button class="env-btn-data" style="width: 100%; border-color: #cbd5e1; background: #fff;" onclick="openCloudConfigModal()">⚙️ スプレッドシート連携設定</button>
+        </div>
+      </div>
+
+      <div class="env-panel-right">
+        <div class="env-preview-bar">
+          <div class="env-preview-label">
+            プレビュー <span class="env-preview-size-badge" id="sizeLabel">角形2号</span>
+          </div>
+          <div>
+            <button class="env-btn-edit" id="editBtn" onclick="editSelected()">✏️ 編集</button>
+          </div>
+        </div>
+        <div class="env-preview-area" id="previewArea">
+          <div id="envelopeScaler">
+            <div id="envelope" class="envelope size-kaku2">
+              <div class="zip" id="pZip"></div>
+              <div class="address" id="pAddr"></div>
+              <div class="name-area">
+                <div class="migi-gaki" id="pMigi"></div>
+                <div class="name-single-line">
+                  <span class="name" id="pName">← 宛先を選択してください</span>
+                  <span class="keisho" id="pKeisho"></span>
+                </div>
+              </div>
+              <div class="sender-area" id="pSender" style="display:none;">
+                <span class="sender-org"  id="pSenderName"></span>
+                <span class="sender-info" id="pSenderInfo"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     モーダルダイアログ
+========================================================================== -->
+
+<!-- 【提出管理】会社編集モーダル -->
+<div class="sys-modal-overlay" id="coModal">
+  <div class="sys-modal-box">
+    <div class="sys-modal-title" id="coModalTitle">会社を追加</div>
+    <input type="hidden" id="coId">
+    <div class="sys-form-row"><label>会社名 *</label><input type="text" class="sys-form-input" id="coName"></div>
+    <div class="sys-form-row">
+      <label>決算月（複数選択可）</label>
+      <div class="month-grid">
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="1"><span>1月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="2"><span>2月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="3"><span>3月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="4"><span>4月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="5"><span>5月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="6"><span>6月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="7"><span>7月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="8"><span>8月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="9"><span>9月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="10"><span>10月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="11"><span>11月</span></label>
+        <label class="mcb-label"><input type="checkbox" class="mcb" value="12"><span>12月</span></label>
+      </div>
+    </div>
+    <div class="sys-form-row"><label>📮 税務署</label><input type="text" class="sys-form-input" id="coTax" placeholder="例：立川税務署"></div>
+    <div class="sys-form-row"><label>🏛 都税事務所</label><input type="text" class="sys-form-input" id="coPref" placeholder="例：立川都税事務所"></div>
+    <div class="sys-form-row"><label>🏢 市区町村</label><input type="text" class="sys-form-input" id="coCity" placeholder="例：立川市役所"></div>
+    <div class="sys-form-row"><label>💻 電子申告</label>
+      <select class="sys-form-select" id="coEtax">
+        <option value="">なし</option>
+        <option value="eTax">eTax</option>
+        <option value="eLTAX">eLTAX</option>
+        <option value="eTax+eLTAX">eTax＋eLTAX</option>
+      </select>
+    </div>
+    <div class="sys-form-row"><label>備考</label><input type="text" class="sys-form-input" id="coMemo" placeholder="例：直接提出、12/25期限"></div>
+    <div class="sys-form-row">
+      <label>源泉所得税</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="coGensen" style="width:16px;height:16px;accent-color:var(--sys-accent);">
+        <span>毎月納付あり（翌月10日まで）</span>
+      </label>
+    </div>
+    <div class="sys-modal-actions">
+      <button class="sys-btn-cancel" onclick="closeSysModal('coModal')">キャンセル</button>
+      <button class="sys-btn-save" onclick="saveCompany()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 【提出管理】一括追加モーダル -->
+<div class="sys-modal-overlay" id="importModal">
+  <div class="sys-modal-box">
+    <div class="sys-modal-title">会社を一括追加</div>
+    <div class="sys-form-row"><label>会社名を1行1社で入力</label>
+      <textarea class="sys-form-input" id="importText" rows="8" placeholder="山中商店&#10;マイスター&#10;安田商店"></textarea>
+    </div>
+    <p style="font-size:11px;color:var(--sys-ink-faint)">※ 提出先は後から個別に設定してください</p>
+    <div class="sys-modal-actions">
+      <button class="sys-btn-cancel" onclick="closeSysModal('importModal')">キャンセル</button>
+      <button class="sys-btn-save" onclick="doImport()">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 【封筒宛名】宛先登録/編集モーダル -->
+<div class="env-modal-overlay" id="entryModal">
+  <div class="env-modal-box">
+    <div class="env-modal-header">
+      <h2 id="entryModalTitle">新規登録</h2>
+      <button class="env-modal-close-btn" onclick="closeEntryModal()">✕</button>
+    </div>
+    <div class="env-modal-body">
+      <input type="hidden" id="fId">
+      <div class="env-section-label">宛先情報</div>
+      <div class="env-form-row2">
+        <div class="env-form-group" style="margin-bottom:0;">
+          <label>宛先名 <span class="req">必須</span></label>
+          <input type="text" id="fName" class="env-form-input" placeholder="例：山田太郎" oninput="livePreview()">
+          <div class="env-field-error" id="errName"></div>
+        </div>
+        <div class="env-form-group" style="margin-bottom:0;">
+          <label>敬称 <span class="req">必須</span></label>
+          <select id="fKeisho" class="env-form-select" onchange="onKeishoChange()">
+            <option value="様">様</option>
+            <option value="御中">御中</option>
+            <option value="各位">各位</option>
+            <option value="殿">殿</option>
+            <option value="貴下">貴下</option>
+            <option value="先生">先生</option>
+            <option value="御侍史">御侍史</option>
+            <option value="御机下">御机下</option>
+            <option value="行">〇〇行</option>
+            <option value="（なし）">（なし）</option>
+            <option value="custom">直接入力する...</option>
+          </select>
+          <input type="text" id="fKeishoCustom" class="env-form-input" placeholder="敬称を入力" style="display:none; margin-top:6px;" oninput="livePreview()">
+        </div>
+      </div>
+      <div class="env-form-group">
+        <label>右書き <span class="tip">社名・部署・担当者名など</span></label>
+        <input type="text" id="fMigi" class="env-form-input" placeholder="例：株式会社〇〇　〇〇部" oninput="livePreview()">
+      </div>
+      <div class="env-section-label">住所情報</div>
+      <div class="env-form-group">
+        <label>郵便番号 <span class="req">必須</span></label>
+        <div class="env-zip-row">
+          <input type="text" id="fZip" class="env-form-input" placeholder="例：196-0025" maxlength="8" oninput="onZipInput()" onblur="livePreview()">
+          <button class="env-btn-zip" id="btnZipLookup" onclick="lookupZip()">住所を検索</button>
+        </div>
+        <div class="env-field-hint">ハイフンは自動で入ります。「住所を検索」で住所1を自動補完できます。</div>
+        <div class="env-field-error" id="errZip"></div>
+      </div>
+      <div class="env-form-group">
+        <label>住所1 <span class="req">必須</span> <span class="tip">都道府県〜番地</span></label>
+        <input type="text" id="fAddr1" class="env-form-input" placeholder="例：東京都昭島市朝日町２丁目１−２１" oninput="livePreview()">
+        <div class="env-field-error" id="errAddr1"></div>
+      </div>
+      <div class="env-form-group">
+        <label>住所2 <span class="tip">建物名・部屋番号</span></label>
+        <input type="text" id="fAddr2" class="env-form-input" placeholder="例：大津ビル2階" oninput="livePreview()">
+      </div>
+      <div class="env-form-group" style="margin-bottom:0;">
+        <label>住所3 <span class="tip">追記</span></label>
+        <input type="text" id="fAddr3" class="env-form-input" placeholder="">
+      </div>
+    </div>
+    <div class="env-modal-footer">
+      <button class="env-btn-danger" id="delBtn" onclick="confirmDelete()" style="display:none;">🗑 削除</button>
+      <button class="env-btn-cancel" onclick="closeEntryModal()">キャンセル</button>
+      <button class="env-btn-save" onclick="saveEntry()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 【封筒宛名】差出人登録/編集モーダル -->
+<div class="env-modal-overlay" id="senderModal">
+  <div class="env-modal-box narrow">
+    <div class="env-modal-header">
+      <h2>差出人情報の登録/編集</h2>
+      <button class="env-modal-close-btn" onclick="closeSenderModal()">✕</button>
+    </div>
+    <div class="env-modal-body">
+      <input type="hidden" id="sId">
+      <div class="env-section-label">差出人情報（封筒左下に印刷されます）</div>
+      <div class="env-form-group">
+        <label>差出人名 <span class="tip">個人名・法人名など</span></label>
+        <input type="text" id="sName" class="env-form-input" placeholder="例：株式会社〇〇　山田太郎">
+      </div>
+      <div class="env-form-group">
+        <label>郵便番号</label>
+        <div class="env-zip-row">
+          <input type="text" id="sZip" class="env-form-input" placeholder="例：196-0025" maxlength="8" oninput="onSenderZipInput()">
+          <button class="env-btn-zip" id="btnSenderZipLookup" onclick="lookupSenderZip()">住所を検索</button>
+        </div>
+      </div>
+      <div class="env-form-group">
+        <label>住所1</label>
+        <input type="text" id="sAddr1" class="env-form-input" placeholder="例：東京都昭島市朝日町２丁目１−２１">
+      </div>
+      <div class="env-form-group">
+        <label>住所2 <span class="tip">建物名・部屋番号</span></label>
+        <input type="text" id="sAddr2" class="env-form-input" placeholder="例：大津ビル2階">
+      </div>
+      <div class="env-form-row2">
+        <div class="env-form-group" style="margin-bottom:0;">
+          <label>TEL <span class="tip">任意</span></label>
+          <input type="text" id="sTel" class="env-form-input" placeholder="例：042-524-7911">
+        </div>
+        <div class="env-form-group" style="margin-bottom:0;">
+          <label>FAX <span class="tip">任意</span></label>
+          <input type="text" id="sFax" class="env-form-input" placeholder="例：042-524-7913">
+        </div>
+      </div>
+    </div>
+    <div class="env-modal-footer">
+      <button class="env-btn-danger" id="sDelBtn" onclick="deleteSender()" style="display:none;">🗑 削除</button>
+      <button class="env-btn-cancel" onclick="closeSenderModal()">キャンセル</button>
+      <button class="env-btn-save" onclick="saveSender()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 【封筒宛名】クラウド連携設定モーダル -->
+<div class="env-modal-overlay" id="cloudConfigModal">
+  <div class="env-modal-box">
+    <div class="env-modal-header">
+      <h2>スプレッドシート連携設定（クラウド同期）</h2>
+      <button class="env-modal-close-btn" onclick="closeCloudConfigModal()">✕</button>
+    </div>
+    <div class="env-modal-body">
+      <div class="env-section-label">GAS連携URLの設定</div>
+      <p style="font-size:12px; color:var(--sys-ink-light); line-height:1.6; margin-bottom:12px;">
+        Googleスプレッドシートとデータを完全同期できます。チーム全員で同一データが共有されます。<br>
+        GAS（Google Apps Script）を構築してデプロイして発行された「ウェブアプリURL」を下に貼り付けてください。
+      </p>
+      
+      <div class="env-form-group">
+        <label>GAS ウェブアプリURL</label>
+        <input type="text" id="gasUrlInput" class="env-form-input" placeholder="https://script.google.com/macros/s/.../exec">
+        <div class="env-field-hint" style="color:var(--sys-accent); font-weight:500; margin-top:6px;">
+          ※空白に設定すると、安全に従来のPC単体ローカル保存モードへ戻ります。
+        </div>
+      </div>
+
+      <div class="env-section-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Google Apps Script（GAS）用ソースコード</span>
+        <button class="sys-btn-sm" style="font-size:10px; padding:2px 8px;" onclick="copyGasCodeToClipboard()">📋 コードをコピー</button>
+      </div>
+      <p style="font-size:11px; color:var(--sys-ink-light); margin-bottom:8px;">
+        接続先スプレッドシートの「拡張機能」＞「Apps Script」を選択し、以下のコードをすべて上書きコピーし、プロジェクトを「ウェブアプリ」としてデプロイ（アクセス権を『全員』に設定）してください。
+      </p>
+      <textarea id="gasCodeTextarea" class="env-form-input" style="font-family: monospace; font-size: 11px; background: #f8fafc; height: 160px; line-height: 1.4;" readonly>/* * 住所録同期用 Google Apps Script ソースコード
+ * スプレッドシート側のスクリプトエディタにこのコードを貼り付けてデプロイしてください。
+ * デプロイ設定：ウェブアプリ / アクセス権「全員」
+ */
+
+const SHEET_NAME = '住所録';
+
+// CORSヘッダーを付与してJSONを返すヘルパー
+function createJsonResponse(data) {
+  var output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
+}
+
+function getOrCreateSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    var headers = ['id', 'name', 'keisho', 'migi', 'zip', 'addr1', 'addr2', 'addr3', 'isFavorite'];
+    sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
+function doGet(e) {
+  try {
+    var sheet = getOrCreateSheet();
+    var rows = sheet.getDataRange().getValues();
+    if (rows.length <= 1) {
+      return createJsonResponse([]);
+    }
+    var headers = rows[0];
+    var list = [];
+    for (var i = 1; i < rows.length; i++) {
+      var row = rows[i];
+      var item = {};
+      headers.forEach(function(header, index) {
+        item[header] = row[index];
+      });
+      if (item.id) item.id = Number(item.id);
+      if (item.isFavorite !== undefined) item.isFavorite = (item.isFavorite === 'true' || item.isFavorite === true);
+      list.push(item);
+    }
+    return createJsonResponse(list);
+  } catch(err) {
+    return createJsonResponse({ status: 'error', message: err.toString() });
+  }
+}
+
+function doPost(e) {
+  try {
+    // Content-Type: text/plain でも application/json でも受け付ける
+    var contents = e.postData ? e.postData.contents : '';
+    var postData = JSON.parse(contents);
+    var sheet = getOrCreateSheet();
+
+    if (postData.action === 'sync_all') {
+      // 全データを上書き同期
+      sheet.clear();
+      var headers = ['id', 'name', 'keisho', 'migi', 'zip', 'addr1', 'addr2', 'addr3', 'isFavorite'];
+      sheet.appendRow(headers);
+
+      var list = postData.data || [];
+      list.forEach(function(item) {
+        sheet.appendRow([
+          item.id || Date.now(),
+          item.name || '',
+          item.keisho || '',
+          item.migi || '',
+          item.zip || '',
+          item.addr1 || '',
+          item.addr2 || '',
+          item.addr3 || '',
+          item.isFavorite ? 'true' : 'false'
+        ]);
+      });
+      return createJsonResponse({ status: 'success', message: 'Sync complete', count: list.length });
+    }
+
+    return createJsonResponse({ status: 'error', message: 'Unknown action: ' + postData.action });
+  } catch(err) {
+    return createJsonResponse({ status: 'error', message: err.toString() });
+  }
+}</textarea>
+    </div>
+    <div class="env-modal-footer">
+      <button class="env-btn-cancel" onclick="closeCloudConfigModal()">閉じる</button>
+      <button class="env-btn-cancel" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;" onclick="closeCloudConfigModal(); loadEnvEntriesWithCloudCheck();">🔄 今すぐ同期</button>
+      <button class="env-btn-save" onclick="saveCloudConfig()">接続設定を保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 【封筒宛名】印刷履歴モーダル -->
+<div class="env-modal-overlay" id="historyModal">
+  <div class="env-modal-box narrow">
+    <div class="env-modal-header">
+      <h2>印刷履歴</h2>
+      <div style="display:flex; gap:8px;">
+        <button class="env-btn-cancel" style="padding:4px 10px; font-size:11px;" onclick="clearHistory()">履歴を消去</button>
+        <button class="env-modal-close-btn" onclick="closeHistoryModal()">✕</button>
+      </div>
+    </div>
+    <div class="env-modal-body" style="padding:0;">
+      <div id="historyList" class="env-history-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 【封筒宛名】削除確認ダイアログ -->
+<div class="env-modal-overlay" id="confirmModal">
+  <div class="env-modal-box narrow" style="width:360px; padding:28px 28px 20px;">
+    <h3 style="font-size:15px; font-weight:700; margin-bottom:8px; color:var(--env-ink);" id="confirmTitle">確認</h3>
+    <p style="font-size:13px; color:var(--env-ink-light); line-height:1.6;" id="confirmMsg"></p>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+      <button class="env-btn-cancel" onclick="closeConfirm()">キャンセル</button>
+      <button class="env-btn-save" style="background:var(--env-danger);" id="confirmOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 共通トースト -->
+<div id="toastContainer"></div>
+
+<script>
+/* ================================================================
+   共通ユーティリティ
+================================================================ */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showToast(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type!=='info' ? ' '+type : '');
+  const icon = {success:'✓', error:'✕', warn:'⚠', info:'ℹ'}[type] || 'ℹ';
+  el.innerHTML = '<span>'+icon+'</span> '+esc(msg);
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity 0.3s'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.main-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('page-'+tab).classList.add('active');
+  
+  if (tab === 'submit' || tab === 'master') {
+    document.getElementById('globalMonthSelector').style.opacity = '1';
+    document.getElementById('globalMonthSelector').style.pointerEvents = 'auto';
+  } else {
+    document.getElementById('globalMonthSelector').style.opacity = '0';
+    document.getElementById('globalMonthSelector').style.pointerEvents = 'none';
+  }
+
+  if(tab === 'submit') renderSubmit();
+  if(tab === 'master') renderMaster();
+  if(tab === 'envelope') {
+    fitToScreen();
+    // 住所録タブが開かれたタイミングでクラウドデータを読み込む
+    loadEnvEntriesWithCloudCheck();
+  }
+}
+
+/* ================================================================
+   提出管理システム
+================================================================ */
+const TAX_CENTER_MAP = {
+  '小石川税務署':'業務センター（上野）','本郷税務署':'業務センター（上野）',
+  '東京上野税務署':'業務センター（上野）','浅草税務署':'業務センター（上野）',
+  '本所税務署':'業務センター（上野）','向島税務署':'業務センター（上野）',
+  '江戸川北税務署':'業務センター（上野）','江戸川南税務署':'業務センター（上野）',
+  '麹町税務署':'大手町分室','神田税務署':'大手町分室','日本橋税務署':'大手町分室',
+  '京橋税務署':'大手町分室','芝税務署':'大手町分室','麻布税務署':'大手町分室',
+  '四谷税務署':'大手町分室','新宿税務署':'大手町分室','大森税務署':'大手町分室',
+  '雪谷税務署':'大手町分室','蒲田税務署':'大手町分室','中野税務署':'大手町分室',
+  '杉並税務署':'大手町分室','荻窪税務署':'大手町分室','王子税務署':'大手町分室',
+  '板橋税務署':'大手町分室','練馬東税務署':'大手町分室','練馬西税務署':'大手町分室',
+  '渋谷税務署':'渋谷分室',
+  '荒川税務署':'葛飾分室','足立税務署':'葛飾分室','西新井税務署':'葛飾分室','葛飾税務署':'葛飾分室',
+  '八王子税務署':'武蔵府中分室','青梅税務署':'武蔵府中分室','武蔵府中税務署':'武蔵府中分室',
+  '町田税務署':'武蔵府中分室','日野税務署':'武蔵府中分室',
+  '江東西税務署':'江東東分室','江東東税務署':'江東東分室',
+};
+const CENTER_ORDER = [
+  '立川税務署（直接）',
+  '業務センター（上野）','大手町分室','渋谷分室','葛飾分室','武蔵府中分室','江東東分室',
+  'その他（直接）'
+];
+function getTaxCenter(taxName) {
+  if (!taxName) return null;
+  if (taxName === '立川税務署') return '立川税務署（直接）';
+  return TAX_CENTER_MAP[taxName] || 'その他（直接）';
+}
+
+const DB = 'submitapp2_co';
+const CK = 'submitapp2_ck';
+
+// ★ 出力制限回避のため、ダミーデータをスリム化しました
+const INITIAL_DATA = [
+  {name:'オリエンス', staff:'박주현', months:[1], tax:'四谷税務署', pref:'新宿都税事務所', city:'', etax:'四谷税務署', memo:'' },
+  {name:'ダイケイ商事', staff:'박주현', months:[2], tax:'町田税務署', pref:'八王子都税事務所', city:'町田市役所', etax:'', memo:'' },
+  {name:'福徳住建', staff:'박주현', months:[3], tax:'立川税務署', pref:'立川都税事務所', city:'昭島市役所', etax:'', memo:'' },
+  {name:'SOUA', staff:'박주현', months:[4], tax:'立川税務署', pref:'立川都税事務所', city:'', etax:'', memo:'' },
+  {name:'丸商興産', staff:'박주현', months:[5], tax:'', pref:'', city:'', etax:'', memo:'' },
+  {name:'山豊', staff:'강유남', months:[6], tax:'東村山税務署', pref:'', city:'東村山市役所', etax:'', memo:'' },
+  {name:'福永会', staff:'박주현', months:[8], tax:'立川税務署', pref:'立川都税事務所', city:'', etax:'', memo:'' },
+  {name:'焼肉山水', staff:'박주현', months:[8], tax:'立川税務署', pref:'立川都税事務所', city:'国分寺市役所', etax:'', memo:'' },
+  {name:'エコロ', staff:'박주현', months:[8], tax:'渋谷税務署', pref:'渋谷都税事務所', city:'', etax:'', memo:'' },
+  {name:'ゴールドブラスト', staff:'박주현', months:[8], tax:'立川税務署', pref:'立川都税事務所', city:'', etax:'', memo:'' },
+  {name:'安田商店', staff:'신준범', months:[3], tax:'武蔵府中税務署', pref:'立川都税事務所', city:'調布市役所', etax:'', memo:'' },
+  {name:'前進商事', staff:'신준범', months:[6], tax:'立川税務署', pref:'立川都税事務所', city:'国立市役所', etax:'', memo:'' },
+  {name:'大城土木', staff:'신준범', months:[9], tax:'八王子税務署', pref:'八王子都税事務所', city:'八王子市役所', etax:'', memo:'' },
+  {name:'イースト', staff:'신준범', months:[10], tax:'東村山税務署', pref:'', city:'東村山市役所', etax:'', memo:'' },
+  {name:'Ehomes', staff:'신준범', months:[10], tax:'大和税務署', pref:'大和市都税', city:'座間市役所', etax:'大和税務署', memo:'' },
+  {name:'山本建設工業', staff:'김효언', months:[4], tax:'立川税務署', pref:'立川都税事務所', city:'', etax:'', memo:'' },
+  {name:'山下鋼材', staff:'김효언', months:[12], tax:'立川税務署', pref:'立川都税事務所', city:'武蔵村山市役所', etax:'立川税務署', memo:'' }
+];
+
+let sysCompanies = [];
+let sysChecks = {};
+
+try { sysCompanies = JSON.parse(localStorage.getItem(DB)||'[]'); } catch(e){}
+try { sysChecks = JSON.parse(localStorage.getItem(CK)||'{}'); } catch(e){}
+
+if (!localStorage.getItem(DB+'_init_v13')) {
+  sysCompanies = sysCompanies.filter(c => !String(c.id||'').startsWith('co_init'));
+  INITIAL_DATA.forEach((d,i) => {
+    if (!sysCompanies.find(c=>c.name===d.name)) {
+      sysCompanies.push({...d, id:'co_init_'+i});
+    }
+  });
+  sysSave();
+  localStorage.setItem(DB+'_init_v13','1');
+}
+
+function sysSave() { localStorage.setItem(DB, JSON.stringify(sysCompanies)); }
+function sysSaveCk() { localStorage.setItem(CK, JSON.stringify(sysChecks)); }
+
+function getSubmitMonth(){ return parseInt(document.getElementById('submitMonth').value); }
+function getDecisionMonth(){ const m=getSubmitMonth()-2; return m<=0?m+12:m; }
+function getYearMonth(){ return new Date().getFullYear()+'_'+String(getSubmitMonth()).padStart(2,'0'); }
+function ckKey(id){ return getYearMonth()+'_'+id; }
+function getTargets(){ const dm=getDecisionMonth(); return sysCompanies.filter(c=>(c.months||[]).includes(dm)); }
+
+function onMonthChange(){ renderSubmit(); renderMaster(); }
+
+function renderSubmit(){
+  const targets = getTargets();
+  const total = targets.length;
+  const done = targets.filter(c=>sysChecks[ckKey(c.id)]).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  document.getElementById('summaryRow').innerHTML = `
+    <div class="summary-card card-blue"><div class="label">対象会社</div><div class="value">${total}</div><div class="sub">${getDecisionMonth()}月決算</div></div>
+    <div class="summary-card card-green"><div class="label">提出済み</div><div class="value">${done}</div><div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div></div>
+    <div class="summary-card card-amber"><div class="label">未提出</div><div class="value">${total-done}</div><div class="sub">${pct}% 完了</div></div>
+  `;
+
+  if(!total){
+    document.getElementById('submitGroups').innerHTML='<div class="sys-empty" style="grid-column:1/-1">📭 この月の提出対象会社がありません。<br>会社マスタで決算月を設定してください。</div>';
+    return;
+  }
+
+  const taxG={}, prefG={}, cityG={}, etaxList=[];
+  targets.forEach(c=>{
+    if(c.tax){ if(!taxG[c.tax]) taxG[c.tax]=[]; taxG[c.tax].push(c); }
+    if(c.pref){ if(!prefG[c.pref]) prefG[c.pref]=[]; prefG[c.pref].push(c); }
+    if(c.city){ if(!cityG[c.city]) cityG[c.city]=[]; cityG[c.city].push(c); }
+    if(c.etax) etaxList.push(c);
+  });
+
+  const groups = document.getElementById('submitGroups');
+  groups.innerHTML='';
+  const gensenList=sysCompanies.filter(c=>c.gensen);
+
+  if(Object.keys(taxG).length) groups.appendChild(buildGroup('tax','📮','税務署',taxG));
+  if(Object.keys(prefG).length) groups.appendChild(buildGroup('pref','🏛','都税事務所',prefG));
+  if(Object.keys(cityG).length) groups.appendChild(buildGroup('city','🏢','市区町村',cityG));
+  if(etaxList.length) groups.appendChild(buildEtax(etaxList));
+  if(gensenList.length) groups.appendChild(buildGensen(gensenList));
+}
+
+function buildGroup(type, icon, label, grps){
+  const div=document.createElement('div');
+  div.className='submit-group';
+  const allCos=Object.values(grps).flat();
+  let html=`<div class="group-head"><div class="group-icon ${type}">${icon}</div><div class="group-title">${label}</div><div class="group-badge">${allCos.length}</div></div>`;
+
+  let taxCenterMap={};
+  if(type==='tax'){
+    Object.keys(grps).forEach(dest=>{
+      const center=getTaxCenter(dest);
+      if(!taxCenterMap[center]) taxCenterMap[center]=[];
+      grps[dest].forEach(c=> taxCenterMap[center].push({...c, _dest:dest}));
+    });
+    CENTER_ORDER.forEach(center=>{
+      const cos=taxCenterMap[center];
+      if(!cos||!cos.length) return;
+      const d=cos.filter(c=>sysChecks[ckKey(c.id)]).length;
+      const isCenterDirect=(center==='立川税務署（直接）'||center==='その他（直接）');
+      const centerLabel=isCenterDirect?center:`東京国税局${center}`;
+      html+=`<div class="dest-block">
+        <div class="dest-label" style="background:#e8f4fd;color:#1e40af;font-weight:700;">
+          <span>📦 ${esc(centerLabel)}</span><span style="color:var(--sys-green)">${d}/${cos.length}</span>
+        </div>`;
+      const byDest={};
+      cos.forEach(c=>{ if(!byDest[c._dest]) byDest[c._dest]=[]; byDest[c._dest].push(c); });
+      Object.keys(byDest).sort().forEach(dest=>{
+        html+=`<div style="padding:3px 14px 0;font-size:10px;color:var(--sys-ink-light);font-weight:600;">▸ ${esc(dest)}</div>`;
+        byDest[dest].forEach(c=>{
+          const isDone=!!sysChecks[ckKey(c.id)];
+          html+=`<div class="company-row ${isDone?'done':''}" onclick="toggleCk('${c.id}')">
+            <div class="co-check ${isDone?'checked':''}"></div>
+            <div class="co-name">${esc(c.name)}</div>
+            ${c.memo?`<div class="co-note">${esc(c.memo)}</div>`:''}
+          </div>`;
+        });
+      });
+      html+=`</div>`;
+    });
+  } else {
+    Object.keys(grps).sort().forEach(dest=>{
+      const cos=grps[dest];
+      const d=cos.filter(c=>sysChecks[ckKey(c.id)]).length;
+      html+=`<div class="dest-block"><div class="dest-label"><span>${esc(dest)}</span><span style="color:var(--sys-green)">${d}/${cos.length}</span></div><div class="dest-companies">`;
+      cos.forEach(c=>{
+        const isDone=!!sysChecks[ckKey(c.id)];
+        html+=`<div class="company-row ${isDone?'done':''}" onclick="toggleCk('${c.id}')">
+          <div class="co-check ${isDone?'checked':''}"></div>
+          <div class="co-name">${esc(c.name)}</div>
+          ${c.memo?`<div class="co-note">${esc(c.memo)}</div>`:''}
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+  }
+
+  div.innerHTML=html;
+
+  const actDiv=document.createElement('div');
+  actDiv.className='group-actions';
+  const btnAll=document.createElement('button');
+  btnAll.className='sys-btn-sm';
+  btnAll.textContent='全て済に';
+  btnAll.addEventListener('click',(function(t,k){ return function(){ checkGrp(t,k,true); }; })(type, Object.keys(grps)));
+  const btnNone=document.createElement('button');
+  btnNone.className='sys-btn-sm';
+  btnNone.textContent='全て未に';
+  btnNone.addEventListener('click',(function(t,k){ return function(){ checkGrp(t,k,false); }; })(type, Object.keys(grps)));
+  actDiv.appendChild(btnAll);
+  actDiv.appendChild(btnNone);
+  div.appendChild(actDiv);
+
+  /* ======== 封筒印刷バー ======== */
+  const printBar=document.createElement('div');
+  printBar.className='group-print-bar';
+  const printLabel=document.createElement('span');
+  printLabel.className='print-bar-label';
+  printLabel.textContent='封筒印刷：';
+  printBar.appendChild(printLabel);
+
+  if(type==='tax'){
+    CENTER_ORDER.forEach(center => {
+      const cos = taxCenterMap[center];
+      if(!cos || !cos.length) return;
+      
+      const uniqueTaxes = [...new Set(cos.map(c => c._dest))].sort();
+      
+      const centerBlock = document.createElement('div');
+      centerBlock.style.cssText = 'display:inline-flex; align-items:center; gap:6px; background:#eff6ff; padding:4px 8px; border-radius:6px; border:1px solid #bfdbfe; margin-bottom:2px;';
+      
+      let shortCenter = center;
+      if (center.includes('分室')) shortCenter = center.replace('東京国税局業務センター', '').replace('業務センター', '');
+      else if (center.includes('上野')) shortCenter = '上野';
+      else if (center.includes('直接')) shortCenter = center.replace('（直接）', '');
+      
+      const centerSpan = document.createElement('span');
+      centerSpan.style.cssText = 'font-size:10px; font-weight:700; color:#1e40af; margin-right:4px;';
+      centerSpan.textContent = shortCenter;
+      centerBlock.appendChild(centerSpan);
+
+      const checkboxes = [];
+      uniqueTaxes.forEach(tax => {
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'display:flex; align-items:center; gap:2px; font-size:11px; cursor:pointer; color:#1e3a8a;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = tax;
+        cb.checked = true; // デフォルトで全てチェック
+        cb.style.accentColor = '#2563eb';
+        checkboxes.push(cb);
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(tax.replace('税務署','')));
+        centerBlock.appendChild(lbl);
+      });
+
+      const btn = document.createElement('button');
+      btn.className = 'btn-print-env';
+      btn.style.background = '#2563eb';
+      btn.textContent = '🖨 印刷';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const selectedTaxes = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+        if(selectedTaxes.length === 0){
+          showToast('印刷する対象を選択してください', 'warn');
+          return;
+        }
+        const selectedCos = cos.filter(c => selectedTaxes.includes(c._dest));
+        openEnvPrintCenter(selectedCos, center, selectedTaxes);
+      });
+      centerBlock.appendChild(btn);
+      
+      printBar.appendChild(centerBlock);
+    });
+  } else {
+    Object.keys(grps).sort().forEach(dest=>{
+      const btn=document.createElement('button');
+      btn.className='btn-print-env';
+      if(type==='pref') btn.style.background='#059669';
+      if(type==='city') btn.style.background='#d97706';
+      const short=dest.replace('都税事務所','都税').replace('市役所','市').replace('区役所','区').replace('町役場','町').replace('村役場','村');
+      btn.textContent='🖨 '+short;
+      btn.addEventListener('click',(function(d,cos){ return function(e){
+        e.stopPropagation();
+        openEnvPrint(type, cos, d);
+      }; })(dest, grps[dest]));
+      printBar.appendChild(btn);
+    });
+  }
+  div.appendChild(printBar);
+  return div;
+}
+
+function buildEtax(list){
+  const div=document.createElement('div');
+  div.className='submit-group';
+  let html=`<div class="group-head"><div class="group-icon etax">💻</div><div class="group-title">電子申告</div><div class="group-badge">${list.length}</div></div>`;
+  html+=`<div class="dest-block"><div class="dest-companies">`;
+  list.forEach(c=>{
+    const isDone=!!sysChecks[ckKey(c.id)];
+    html+=`<div class="company-row ${isDone?'done':''}" onclick="toggleCk('${c.id}')">
+      <div class="co-check ${isDone?'checked':''}"></div>
+      <div class="co-name">${esc(c.name)}</div>
+      <div class="co-note">${esc(c.etax)}</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+  div.innerHTML=html;
+  return div;
+}
+
+function buildGensen(list){
+  const div=document.createElement('div');
+  div.className='submit-group';
+  const sm=document.getElementById('submitMonth');
+  const m=parseInt(sm.value);
+  const y=new Date().getFullYear();
+  const deadline=m===12 ? `${y+1}年1月10日` : `${y}年${m+1}月10日`;
+
+  let html=`<div class="group-head">
+    <div class="group-icon" style="background:#fce7f3;font-size:14px;">💴</div>
+    <div class="group-title">源泉所得税（毎月納付）</div>
+    <div class="group-badge">${list.length}</div>
+  </div>
+  <div class="dest-block">
+    <div class="dest-label" style="background:#fdf2f8;color:#9d174d;">
+      <span>📅 納付期限：${deadline}</span>
+      <span style="color:var(--sys-green)">${list.filter(c=>sysChecks[ckKey(c.id)+'_gensen']).length}/${list.length}</span>
+    </div>
+    <div class="dest-companies">`;
+
+  list.forEach(c=>{
+    const isDone=!!sysChecks[ckKey(c.id)+'_gensen'];
+    const taxName=c.tax||'税務署未設定';
+    html+=`<div class="company-row ${isDone?'done':''}" data-gensen-id="${c.id}">
+      <div class="co-check ${isDone?'checked':''}"></div>
+      <div class="co-name">${esc(c.name)}</div>
+      <div class="co-staff" style="font-size:11px;color:var(--sys-ink-faint);">${esc(taxName)}</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+  div.innerHTML=html;
+
+  div.querySelectorAll('[data-gensen-id]').forEach(row=>{
+    const id=row.getAttribute('data-gensen-id');
+    row.addEventListener('click', ()=>{
+      const k=ckKey(id)+'_gensen';
+      sysChecks[k]=!sysChecks[k];
+      sysSaveCk(); renderSubmit();
+    });
+  });
+
+  const actDiv=document.createElement('div');
+  actDiv.className='group-actions';
+  const btnAll=document.createElement('button');
+  btnAll.className='sys-btn-sm';
+  btnAll.textContent='全て済に';
+  btnAll.addEventListener('click',()=>{
+    list.forEach(c=>{ sysChecks[ckKey(c.id)+'_gensen']=true; });
+    sysSaveCk(); renderSubmit();
+  });
+  const btnNone=document.createElement('button');
+  btnNone.className='sys-btn-sm';
+  btnNone.textContent='全て未に';
+  btnNone.addEventListener('click',()=>{
+    list.forEach(c=>{ sysChecks[ckKey(c.id)+'_gensen']=false; });
+    sysSaveCk(); renderSubmit();
+  });
+  actDiv.appendChild(btnAll);
+  actDiv.appendChild(btnNone);
+  div.appendChild(actDiv);
+  return div;
+}
+
+function toggleCk(id){ const k=ckKey(id); sysChecks[k]=!sysChecks[k]; sysSaveCk(); renderSubmit(); }
+
+function checkGrp(type, keys, val){
+  const targets=getTargets();
+  keys.forEach(dest=>{
+    targets.filter(c=>{
+      if(type==='tax') return c.tax===dest;
+      if(type==='pref') return c.pref===dest;
+      if(type==='city') return c.city===dest;
+    }).forEach(c=>{ sysChecks[ckKey(c.id)]=val; });
+  });
+  sysSaveCk(); renderSubmit();
+}
+
+let masterSort = { key: null, dir: 1 };
+
+function sortMaster(key){
+  if(masterSort.key === key){
+    masterSort.dir *= -1;
+  } else {
+    masterSort.key = key;
+    masterSort.dir = 1;
+  }
+  ['name','month','tax','staff'].forEach(k=>{
+    const el=document.getElementById('sort-'+k);
+    if(!el) return;
+    el.className='sort-arrow ' + (masterSort.key===k ? (masterSort.dir===1?'asc':'desc') : 'none');
+  });
+  renderMaster();
+}
+
+function masterSortFn(a, b){
+  const k=masterSort.key, d=masterSort.dir;
+  if(!k) return 0;
+  let av='', bv='';
+  if(k==='name'){ av=a.name||''; bv=b.name||''; }
+  else if(k==='month'){ av=Math.min(...(a.months||[999])); bv=Math.min(...(b.months||[999])); return (av-bv)*d; }
+  else if(k==='tax'){ av=a.tax||''; bv=b.tax||''; }
+  else if(k==='staff'){ av=a.staff||''; bv=b.staff||''; }
+  return av.localeCompare(bv,'ja')*d;
+}
+
+function renderMaster(){
+  const q=(document.getElementById('masterSearch').value||'').toLowerCase();
+  let filtered=sysCompanies.filter(c=>(c.name||'').toLowerCase().includes(q));
+  if(masterSort.key) filtered=[...filtered].sort(masterSortFn);
+  document.getElementById('masterCount').textContent=`（${filtered.length}件）`;
+  const dm=getDecisionMonth();
+  document.getElementById('masterBody').innerHTML=filtered.map(c=>{
+    const months=c.months||[];
+    const dots=Array.from({length:12},(_,i)=>{
+      const m=i+1, on=months.includes(m), cur=m===dm&&on;
+      return `<div class="mdot ${cur?'cur':on?'on':'off'}">${m}</div>`;
+    }).join('');
+    return `<tr>
+      <td><strong>${esc(c.name)}</strong>${c.gensen?'<span style="font-size:9px;color:#9d174d;margin-left:4px;">💴源泉</span>':''}</td>
+      <td><div class="month-dots">${dots}</div></td>
+      <td>${c.tax?`<span class="dest-tag tax">${esc(c.tax)}</span>`:''}</td>
+      <td>${c.pref?`<span class="dest-tag pref">${esc(c.pref)}</span>`:''}</td>
+      <td>${c.city?`<span class="dest-tag city">${esc(c.city)}</span>`:''}</td>
+      <td>${c.etax?`<span class="dest-tag etax">${esc(c.etax)}</span>`:''}</td>
+      <td style="font-size:11px;color:var(--sys-ink-faint)">${esc(c.memo)}</td>
+      <td style="font-size:11px;color:var(--sys-ink-mid)">${esc(c.staff||'')}</td>
+      <td style="white-space:nowrap"><button class="sys-btn-edit" onclick="openEdit('${c.id}')">編集</button> <button class="sys-btn-del" onclick="delCo('${c.id}')">削除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openAdd(){
+  document.getElementById('coModalTitle').textContent='会社を追加';
+  document.getElementById('coId').value='';
+  ['coName','coTax','coPref','coCity','coMemo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('coEtax').value='';
+  document.querySelectorAll('.mcb').forEach(cb=>cb.checked=false);
+  document.getElementById('coGensen').checked=false;
+  document.getElementById('coModal').classList.add('open');
+}
+
+function openEdit(id){
+  const c=sysCompanies.find(x=>x.id===id); if(!c) return;
+  document.getElementById('coModalTitle').textContent='会社を編集';
+  document.getElementById('coId').value=id;
+  document.getElementById('coName').value=c.name||'';
+  document.getElementById('coTax').value=c.tax||'';
+  document.getElementById('coPref').value=c.pref||'';
+  document.getElementById('coCity').value=c.city||'';
+  document.getElementById('coEtax').value=c.etax||'';
+  document.getElementById('coGensen').checked=!!(c.gensen);
+  document.getElementById('coMemo').value=c.memo||'';
+  document.querySelectorAll('.mcb').forEach(cb=>{ cb.checked=(c.months||[]).includes(parseInt(cb.value)); });
+  document.getElementById('coModal').classList.add('open');
+}
+
+function saveCompany(){
+  const name=document.getElementById('coName').value.trim();
+  if(!name){ showToast('会社名を入力してください', 'error'); return; }
+  const months=Array.from(document.querySelectorAll('.mcb:checked')).map(cb=>parseInt(cb.value));
+  const data={name,months,
+    tax:document.getElementById('coTax').value.trim(),
+    pref:document.getElementById('coPref').value.trim(),
+    city:document.getElementById('coCity').value.trim(),
+    etax:document.getElementById('coEtax').value,
+    memo:document.getElementById('coMemo').value.trim(),
+    gensen:document.getElementById('coGensen').checked
+  };
+  const id=document.getElementById('coId').value;
+  if(id){ const i=sysCompanies.findIndex(c=>c.id===id); if(i>=0) sysCompanies[i]={...sysCompanies[i],...data}; }
+  else { data.id='co_'+Date.now(); sysCompanies.push(data); }
+  sysSave(); closeSysModal('coModal'); renderMaster(); renderSubmit(); showToast('保存しました', 'success');
+}
+
+function delCo(id){
+  if(!confirm('削除しますか？')) return;
+  sysCompanies=sysCompanies.filter(c=>c.id!==id); sysSave(); renderMaster(); renderSubmit(); showToast('削除しました', 'warn');
+}
+
+function openImport(){ document.getElementById('importText').value=''; document.getElementById('importModal').classList.add('open'); }
+function doImport(){
+  const names=document.getElementById('importText').value.trim().split('\n').map(s=>s.trim()).filter(Boolean);
+  names.forEach(name=>{ if(!sysCompanies.find(c=>c.name===name)) sysCompanies.push({id:'co_'+Date.now()+'_'+Math.random(),name,months:[],tax:'',pref:'',city:'',etax:'',memo:''}); });
+  sysSave(); closeSysModal('importModal'); renderMaster(); showToast(names.length+'件追加しました', 'success');
+}
+
+function closeSysModal(id){ document.getElementById(id).classList.remove('open'); }
+
+
+/* ================================================================
+   封筒宛名書システム & 連携ロジック
+================================================================ */
+const CENTER_TO_MIGI = {
+  '立川税務署（直接）':   '立川税務署',
+  '業務センター（上野）': '東京国税局業務センター',
+  '大手町分室':           '東京国税局業務センター大手町分室',
+  '渋谷分室':             '東京国税局業務センター渋谷分室',
+  '葛飾分室':             '東京国税局業務センター葛飾分室',
+  '武蔵府中分室':         '東京国税局業務センター武蔵府中分室',
+  '江東東分室':           '東京国税局業務センター江東東分室',
+  'その他（直接）':       null,
+};
+
+function openEnvPrint(type, cos, destName){
+  try {
+    switchTab('envelope');
+    let target = envEntries.find(e => e.name === destName);
+    
+    // 税務署名で見つからない場合は分室名を頼りに検索
+    if(!target && type === 'tax') {
+      const migiName = CENTER_TO_MIGI[getTaxCenter(destName)] || '';
+      target = envEntries.find(e => (e.migi||'').trim() === migiName);
+    }
+
+    if(target){
+      selectItem(target.id);
+      showToast('📮 ' + destName + ' の封筒を表示しました', 'success');
+      var g = getGroup(target);
+      if(g) selectGroupTab(g);
+    } else {
+      showToast('住所録に「' + destName + '」が見つかりません', 'error');
+    }
+
+    let infoEl = document.getElementById('envLinkInfo');
+    if(!infoEl){
+      infoEl = document.createElement('div');
+      infoEl.id = 'envLinkInfo';
+      infoEl.style.cssText = 'padding:10px 16px;background:#eff6ff;border-top:2px solid #3b82f6;font-size:12px;color:#1e40af;line-height:1.8;flex-shrink:0;max-height:160px;overflow-y:auto;';
+      document.querySelector('.env-panel-right').appendChild(infoEl);
+    }
+    infoEl.style.display = 'block';
+    infoEl.innerHTML = '<div style="font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">'
+      + '<span>📋 ' + esc(destName) + '　提出会社</span>'
+      + '<button onclick="this.parentElement.parentElement.style.display=\'none\'" style="background:none;border:none;cursor:pointer;color:#1e40af;font-size:14px;padding:0 4px;">✕</button></div>'
+      + cos.map(c=>'・ ' + esc(c.name)).join('<br>');
+  } catch(e){ console.error(e); }
+}
+
+function openEnvPrintCenter(cos, centerName, taxes){
+  try {
+    switchTab('envelope');
+    let targets = [];
+    taxes.forEach(taxName => {
+      let t = envEntries.find(e => e.name === taxName);
+      if(!t) {
+        const migiName = CENTER_TO_MIGI[getTaxCenter(taxName)] || '';
+        t = envEntries.find(e => (e.migi||'').trim() === migiName);
+      }
+      if(t && !targets.some(x => x.id === t.id)) targets.push(t);
+    });
+
+    if(targets.length === 0){
+      showToast('住所録に該当する宛先が見つかりません', 'error');
+      return;
+    }
+
+    if(targets.length === 1) {
+      let target = targets[0];
+      selectItem(target.id);
+      showToast('📮 ' + target.name + ' の封筒を表示しました', 'success');
+      var g = getGroup(target);
+      if(g) selectGroupTab(g);
+    } else {
+      let base = targets[0];
+      let names = taxes.map(t => t.replace(/税務署$/, ''));
+      let unique = [...new Set(names)];
+      mergedData = { 
+        id: base.id, 
+        zip: base.zip, 
+        addr1: base.addr1, 
+        addr2: base.addr2||'', 
+        addr3: base.addr3||'', 
+        migi: base.migi||'', 
+        name: unique.join('・') + '　税務署', 
+        keisho: base.keisho||'御中', 
+        nameCount: unique.length 
+      };
+      envSelectedId = base.id;
+      drawEnvelope(mergedData);
+      document.getElementById('editBtn').style.display = 'none';
+      document.getElementById('printBtn').disabled = false;
+      var g = getGroup(base);
+      if(g) selectGroupTab(g);
+      renderList();
+      fitToScreen();
+      showToast('📮 ' + unique.join('・') + ' の封筒をまとめました', 'success');
+    }
+
+    let infoEl = document.getElementById('envLinkInfo');
+    if(!infoEl){
+      infoEl = document.createElement('div');
+      infoEl.id = 'envLinkInfo';
+      infoEl.style.cssText = 'padding:10px 16px;background:#eff6ff;border-top:2px solid #3b82f6;font-size:12px;color:#1e40af;line-height:1.8;flex-shrink:0;max-height:160px;overflow-y:auto;';
+      document.querySelector('.env-panel-right').appendChild(infoEl);
+    }
+    infoEl.style.display = 'block';
+    let destLabel = taxes.length > 1 ? taxes.map(t=>t.replace('税務署','')).join('・')+'税務署' : taxes[0];
+    infoEl.innerHTML = '<div style="font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">'
+      + '<span>📋 ' + esc(destLabel) + '　提出会社</span>'
+      + '<button onclick="this.parentElement.parentElement.style.display=\'none\'" style="background:none;border:none;cursor:pointer;color:#1e40af;font-size:14px;padding:0 4px;">✕</button></div>'
+      + cos.map(c=>'・ ' + esc(c.name)).join('<br>');
+  } catch(e){ console.error(e); }
+}
+
+const CLOUD_CONFIG_KEY = 'env_cloud_gas_url';
+let cloudGasUrl = localStorage.getItem(CLOUD_CONFIG_KEY) || '';
+let isCloudSyncing = false;
+
+let envEntries = [];
+
+// スプレッドシートから住所録データをロードする
+async function loadEnvEntriesWithCloudCheck(silent) {
+  if (!cloudGasUrl) {
+    envEntries = [];
+    updateCloudStatusUI('local');
+    renderGroupTabs();
+    renderList();
+    renderSender();
+    fitToScreen();
+    return;
+  }
+
+  if (isCloudSyncing) return;
+  isCloudSyncing = true;
+  updateCloudStatusUI('loading');
+  try {
+    const url = cloudGasUrl + (cloudGasUrl.includes('?') ? '&' : '?') + 'action=get&t=' + Date.now();
+    const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+    if (!response.ok) throw new Error('Network response was not ok: ' + response.status);
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch(parseErr) {
+      throw new Error('JSONパースに失敗しました: ' + text.slice(0, 100));
+    }
+
+    if (Array.isArray(data)) {
+      envEntries = data;
+    } else if (data && Array.isArray(data.data)) {
+      envEntries = data.data;
+    } else if (data && data.status === 'error') {
+      throw new Error('GASエラー: ' + (data.message || '不明なエラー'));
+    } else {
+      throw new Error('予期しないレスポンス形式です');
+    }
+
+    updateCloudStatusUI('online');
+    if (!silent) showToast('スプレッドシートとの同期に成功しました', 'success');
+  } catch (e) {
+    console.error('GAS fetch error:', e);
+    envEntries = [];
+    updateCloudStatusUI('local_failed');
+    showToast('同期失敗（' + e.message + '）', 'error');
+  } finally {
+    isCloudSyncing = false;
+  }
+
+  renderGroupTabs();
+  renderList();
+  renderSender();
+  fitToScreen();
+}
+
+// 同期ステータスバッジの表示書き換え
+function updateCloudStatusUI(status) {
+  const badge = document.getElementById('cloudStatusBadge');
+  const syncBtn = document.getElementById('syncNowBtn');
+  if (!badge) return;
+  badge.className = 'cloud-status-badge';
+  badge.style.color = '';
+  badge.style.borderColor = '';
+  
+  if (status === 'local') {
+    badge.classList.add('cloud-status-local');
+    badge.innerHTML = '<span>💻 ローカル保存（スプレッドシート未接続）</span>';
+    if (syncBtn) syncBtn.style.display = 'none';
+  } else if (status === 'loading') {
+    badge.classList.add('cloud-status-loading');
+    badge.innerHTML = '<span>🔄 スプレッドシート同期通信中…</span>';
+    if (syncBtn) { badge.appendChild(syncBtn); syncBtn.style.display = 'none'; }
+  } else if (status === 'online') {
+    badge.classList.add('cloud-status-online');
+    badge.innerHTML = '<span>🟢 スプレッドシート同期済み</span>';
+    if (syncBtn) { badge.appendChild(syncBtn); syncBtn.style.display = ''; }
+  } else if (status === 'local_failed') {
+    badge.classList.add('cloud-status-local');
+    badge.style.color = '#b91c1c';
+    badge.style.borderColor = '#fca5a5';
+    badge.innerHTML = '<span>⚠️ スプレッドシートに接続できません</span>';
+    if (syncBtn) { badge.appendChild(syncBtn); syncBtn.style.display = ''; }
+  }
+}
+
+// データの新規追加・変更時のクラウド同期送信
+async function envSaveEntries() {
+  if (!cloudGasUrl) {
+    showToast('スプレッドシートが未接続です。設定からURLを登録してください。', 'error');
+    return;
+  }
+
+  updateCloudStatusUI('loading');
+  try {
+    const response = await fetch(cloudGasUrl, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'sync_all',
+        data: envEntries
+      })
+    });
+    const text = await response.text();
+    let resData;
+    try {
+      resData = JSON.parse(text);
+    } catch(parseErr) {
+      throw new Error('レスポンスのJSONパースに失敗: ' + text.slice(0, 100));
+    }
+    if (resData.status === 'success') {
+      updateCloudStatusUI('online');
+    } else {
+      throw new Error(resData.message || 'Unknown sync error');
+    }
+  } catch(e) {
+    console.error('GAS Sync save error:', e);
+    updateCloudStatusUI('local_failed');
+    showToast('スプレッドシートへの保存に失敗しました（' + e.message + '）', 'error');
+  }
+}
+
+/* ======== 差出人管理 ======== */
+const SENDER_DB_KEY = 'env_sender_db_v2';
+let senderEntries = [];
+try { senderEntries = JSON.parse(localStorage.getItem(SENDER_DB_KEY) || '[]'); } catch(e) {}
+
+// 旧データのマイグレーション
+let oldSender = {};
+try { oldSender = JSON.parse(localStorage.getItem('SENDER_KEY') || localStorage.getItem('env_sender') || '{}'); } catch(e) {}
+if (senderEntries.length === 0 && (oldSender.name || oldSender.addr1)) {
+  senderEntries.push({ ...oldSender, id: Date.now(), isActive: true });
+  localStorage.setItem(SENDER_DB_KEY, JSON.stringify(senderEntries));
+}
+
+function envSaveSenders() { localStorage.setItem(SENDER_DB_KEY, JSON.stringify(senderEntries)); }
+function getActiveSender() { return senderEntries.find(s => s.isActive) || {}; }
+
+let printHistory = [];
+try { printHistory = JSON.parse(localStorage.getItem('HISTORY_KEY') || '[]'); } catch(e) {}
+
+let envSelectedId  = null;
+let currentSize = 'kaku2';
+let confirmCb   = null;
+let selectMode  = false;
+let checkedIds  = new Set();
+let mergedData  = null;  
+let currentGroupTab = 'すべて';
+
+function saveHistory() { localStorage.setItem('HISTORY_KEY', JSON.stringify(printHistory.slice(0, 50))); }
+
+function toggleFavorite(ev, id) {
+  ev.stopPropagation(); 
+  const entry = envEntries.find(e => e.id === id);
+  if (entry) {
+    entry.isFavorite = !entry.isFavorite;
+    envSaveEntries();
+    renderGroupTabs();
+    renderList();
+  }
+}
+
+var GROUP_ORDER = [
+  '東京国税局業務センター','東京国税局業務センター大手町分室','東京国税局業務センター渋谷分室','東京国税局業務センター葛飾分室',
+  '東京国税局業務センター武蔵府中分室','東京国税局業務センター江東東分室','都税事務所','市区町村役所','返信用','その他'
+];
+
+function getGroup(e) {
+  if ((e.keisho||'') === '行') return '返信用';
+  if (String(e.name||'').match(/都税事務所|都税支所/)) return '都税事務所';
+  if (String(e.name||'').match(/市役所|区役所|町役場|村役場/)) return '市区町村役所';
+  if (!e.migi) return 'その他';
+  var m = e.migi.trim();
+  return GROUP_ORDER.includes(m) ? m : 'その他';
+}
+
+function shortGroup(g) {
+  return g
+    .replace('東京国税局業務センター大手町分室','大手町分室').replace('東京国税局業務センター渋谷分室','渋谷分室')
+    .replace('東京国税局業務センター葛飾分室','葛飾分室').replace('東京国税局業務センター武蔵府中分室','武蔵府中分室')
+    .replace('東京国税局業務センター江東東分室','江東東分室').replace('東京国税局業務センター','業務ｾﾝﾀｰ<br>（上野）')
+    .replace('都税事務所','都税事務所<br>・支所').replace('市区町村役所','市区町村<br>役所').replace('返信用','↩ 返信用');
+}
+
+function renderGroupTabs() {
+  const tabsContainer = document.getElementById('envGroupTabs');
+  if (!tabsContainer) return;
+  const groupCount = {};
+  let totalCount = envEntries.length;
+  let favCount = 0;
+  envEntries.forEach(e => {
+    if (e.isFavorite) favCount++;
+    const g = getGroup(e);
+    groupCount[g] = (groupCount[g] || 0) + 1;
+  });
+
+  let html = '';
+  const isAllActive = currentGroupTab === 'すべて';
+  html += `<button class="env-tab-item ${isAllActive ? 'active' : ''}" onclick="selectGroupTab('すべて')"><div>すべて</div><div class="env-tab-count">${totalCount}</div></button>`;
+  
+  if (favCount > 0 || currentGroupTab === 'お気に入り') {
+    const isFavActive = currentGroupTab === 'お気に入り';
+    html += `<button class="env-tab-item ${isFavActive ? 'active' : ''}" onclick="selectGroupTab('お気に入り')">
+        <div style="font-size:13px; margin-bottom:2px; color: ${isFavActive ? '#f59e0b' : 'rgba(255,255,255,0.65)'}">★</div>
+        <div>お気に入り</div><div class="env-tab-count">${favCount}</div>
+      </button>`;
+  }
+  
+  GROUP_ORDER.forEach(g => {
+    if (!groupCount[g]) return;
+    const isActive = currentGroupTab === g;
+    html += `<button class="env-tab-item ${isActive ? 'active' : ''}" onclick="selectGroupTab('${g}')" title="${g}"><div>${shortGroup(g)}</div><div class="env-tab-count">${groupCount[g]}</div></button>`;
+  });
+
+  // 差出人タブの追加
+  const isSenderActive = currentGroupTab === '差出人';
+  html += `<button class="env-tab-item ${isSenderActive ? 'active' : ''}" onclick="selectGroupTab('差出人')" style="margin-top:auto; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; margin-bottom:4px;">
+      <div style="font-size:13px; margin-bottom:2px; color: ${isSenderActive ? '#fff' : 'rgba(255,255,255,0.65)'}">👤</div>
+      <div>差出人</div><div class="env-tab-count">${senderEntries.length}</div>
+    </button>`;
+
+  tabsContainer.innerHTML = html;
+}
+
+function selectGroupTab(g) {
+  currentGroupTab = g;
+  if (g !== 'すべて' && g !== 'お気に入り' && g !== '差出人') collapsedGroups.delete(g);
+  document.getElementById('envSearchInput').value = '';
+  document.getElementById('envSearchClear').style.display = 'none';
+  renderGroupTabs();
+  renderList();
+}
+
+function enterSelectMode() { selectMode = true; checkedIds = new Set(); document.getElementById('selectToolbar').classList.add('active'); document.getElementById('btnMultiSel').style.display = 'none'; updateSelectUI(); renderList(); }
+function exitSelectMode() { selectMode = false; checkedIds = new Set(); document.getElementById('selectToolbar').classList.remove('active'); document.getElementById('btnMultiSel').style.display = ''; renderList(); }
+
+function toggleCheck(id) {
+  if (checkedIds.has(id)) checkedIds.delete(id); else checkedIds.add(id);
+  updateSelectUI(); renderList();
+}
+
+function selectAllVisible() {
+  var q = (document.getElementById('envSearchInput').value||'').trim().toLowerCase();
+  let visible = envEntries;
+  if (currentGroupTab === 'お気に入り') visible = visible.filter(e => e.isFavorite);
+  else if (currentGroupTab !== 'すべて') visible = visible.filter(e => getGroup(e) === currentGroupTab);
+  
+  visible = visible.filter(function(e) {
+    if (!q) return true;
+    return [(e.name||''),(e.addr1||''),(e.addr2||''),(e.migi||'')].join(' ').toLowerCase().includes(q);
+  });
+  var allChecked = visible.length > 0 && visible.every(function(e){ return checkedIds.has(e.id); });
+  if (allChecked) { visible.forEach(function(e){ checkedIds.delete(e.id); }); }
+  else            { visible.forEach(function(e){ checkedIds.add(e.id); }); }
+  updateSelectUI(); renderList();
+}
+
+function updateSelectUI() {
+  var n = checkedIds.size;
+  document.getElementById('selectCount').textContent = n + '件選択中';
+  document.getElementById('btnDeleteSel').disabled = (n === 0);
+  var canMerge = false;
+  if (n >= 2) {
+    var checked = envEntries.filter(function(e){ return checkedIds.has(e.id); });
+    var firstMigi = (checked[0].migi||'').trim();
+    var firstZip  = (checked[0].zip||'').trim();
+    canMerge = firstMigi !== '' && checked.every(function(e){ return (e.migi||'').trim() === firstMigi && (e.zip||'').trim() === firstZip; });
+  }
+  var btn = document.getElementById('btnMergeSel');
+  btn.disabled = !canMerge; btn.title = canMerge ? '' : '同じ分室の宛先を2件以上選択してください';
+}
+
+function deleteSelected() {
+  if (checkedIds.size === 0) return;
+  var count = checkedIds.size;
+  showConfirm('削除の確認', count + '件の宛先を削除しますか？この操作は元に戻せません。', async function() {
+    envEntries = envEntries.filter(function(e){ return !checkedIds.has(e.id); });
+    if (checkedIds.has(envSelectedId)) { envSelectedId = null; }
+    await envSaveEntries(); exitSelectMode(); renderGroupTabs(); renderList(); showToast(count + '件を削除しました', 'success');
+  });
+}
+
+function mergeSelected() {
+  var checked = envEntries.filter(function(e){ return checkedIds.has(e.id); });
+  if (checked.length < 2) return;
+  var base = checked[0];
+  var names = checked.map(function(e){ return (e.name||'').replace(/税務署$/, ''); });
+  var unique = names.filter(function(n,i){ return names.indexOf(n)===i; });
+  var merged = { id: base.id, zip: base.zip, addr1: base.addr1, addr2: base.addr2||'', addr3: base.addr3||'', migi: base.migi||'', name: unique.join('・') + '　税務署', keisho: base.keisho||'御中', nameCount: unique.length };
+  mergedData = merged; envSelectedId = base.id;
+  drawEnvelope(merged);
+  document.getElementById('editBtn').style.display = 'none';
+  document.getElementById('printBtn').disabled = false;
+  exitSelectMode(); fitToScreen(); showToast(checked.length + '件をまとめました', 'success');
+}
+
+function openOverlay(id)  { document.getElementById(id).classList.add('is-open'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('is-open'); }
+
+var collapsedGroups = new Set();
+function toggleGroup(g) { if (collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g); renderList(); }
+
+function onKeishoChange() {
+  var sel = document.getElementById('fKeisho');
+  var customInput = document.getElementById('fKeishoCustom');
+  if (sel.value === 'custom') {
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+  }
+  livePreview();
+}
+
+function onSearchInput() {
+  var val = document.getElementById('envSearchInput').value;
+  document.getElementById('envSearchClear').style.display = val ? 'block' : 'none';
+  renderList();
+}
+function clearSearch() { document.getElementById('envSearchInput').value = ''; document.getElementById('envSearchClear').style.display = 'none'; renderList(); }
+
+function makeItem(e) {
+  var sub = e.zip ? '〒'+e.zip : '';
+  var isChecked = checkedIds.has(e.id);
+  var isSel = !selectMode && e.id === envSelectedId;
+  var item = document.createElement('div');
+  item.className = 'env-addr-item' + (isSel ? ' selected' : '') + (isChecked ? ' multi-checked' : '');
+
+  if (selectMode) {
+    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'env-item-checkbox'; cb.checked = isChecked;
+    cb.addEventListener('change', (function(id){ return function(){ toggleCheck(id); }; })(e.id));
+    item.appendChild(cb);
+    item.addEventListener('click', (function(id){ return function(ev){ if (ev.target.tagName !== 'INPUT') toggleCheck(id); }; })(e.id));
+  } else {
+    item.addEventListener('click', (function(id){ return function(){ selectItem(id); }; })(e.id));
+  }
+
+  var textDiv = document.createElement('div');
+  textDiv.style.flex = '1'; textDiv.style.minWidth = '0';
+  textDiv.innerHTML = '<div class="env-item-name"><span class="env-favorite-btn ' + (e.isFavorite ? 'active' : '') + '" onclick="toggleFavorite(event, '+e.id+')">★</span>'
+    + '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(e.name||'名称未設定') + '</span></div>'
+    + (sub ? '<div class="env-item-sub">'+esc(sub)+'</div>' : '');
+  item.appendChild(textDiv);
+  if (!selectMode) { var arrow = document.createElement('span'); arrow.className = 'env-item-arrow'; arrow.textContent = '›'; item.appendChild(arrow); }
+  return item;
+}
+
+function renderList() {
+  const q = (document.getElementById('envSearchInput').value||'').trim().toLowerCase();
+  const list = document.getElementById('envAddrList');
+  const meta = document.getElementById('envListMeta');
+  
+  if (currentGroupTab === '差出人') {
+    const filtered = senderEntries.filter(s => {
+      if (!q) return true;
+      return [(s.name||''),(s.addr1||''),(s.addr2||'')].join(' ').toLowerCase().includes(q);
+    });
+    meta.textContent = q ? `${filtered.length}件 / 全${senderEntries.length}件` : `全${senderEntries.length}件`;
+    document.getElementById('btnMultiSel').style.display = 'none';
+    document.querySelector('.env-btn-add').textContent = '＋ 差出人を追加';
+    document.querySelector('.env-btn-add').onclick = () => openSenderModal();
+    document.querySelector('.env-data-actions').style.display = 'none';
+    
+    list.innerHTML = '';
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="env-empty-list">${q ? '該当する差出人がありません' : '👤 差出人が登録されていません。<br>「＋ 差出人を追加」から<br>登録してください。'}</div>`;
+      return;
+    }
+    
+    filtered.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'env-addr-item' + (s.isActive ? ' selected' : '');
+      const sub = s.zip ? '〒'+s.zip : '';
+      item.innerHTML = `<div style="flex:1; min-width:0;">
+          <div class="env-item-name"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name||'名称未設定')}</span></div>
+          ${sub ? `<div class="env-item-sub">${esc(sub)}</div>` : ''}
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          ${s.isActive ? '<span style="font-size:10px; background:#fff; color:#1a1714; padding:2px 6px; border-radius:4px; font-weight:700;">選択中</span>' : ''}
+          <button class="sys-btn-edit" style="padding:4px 8px; font-size:11px; display:block;" onclick="event.stopPropagation(); openSenderModal(${s.id})">編集</button>
+        </div>`;
+      item.onclick = () => selectSender(s.id);
+      list.appendChild(item);
+    });
+    return;
+  }
+
+  // 宛先リスト用UI戻し
+  document.querySelector('.env-btn-add').textContent = '＋ 新規登録';
+  document.querySelector('.env-btn-add').onclick = () => openEntryModal();
+  document.querySelector('.env-data-actions').style.display = 'flex';
+  document.getElementById('btnMultiSel').style.display = '';
+
+  let tabFiltered = envEntries;
+  if (currentGroupTab === 'お気に入り') tabFiltered = envEntries.filter(e => e.isFavorite);
+  else if (currentGroupTab !== 'すべて') tabFiltered = envEntries.filter(e => getGroup(e) === currentGroupTab);
+  const filtered = tabFiltered.filter(function(e) {
+    if (!q) return true;
+    return [(e.name||''),(e.addr1||''),(e.addr2||''),(e.migi||'')].join(' ').toLowerCase().includes(q);
+  });
+  meta.textContent = q ? filtered.length+'件 / 全'+tabFiltered.length+'件' : '全'+tabFiltered.length+'件';
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="env-empty-list">'+(envEntries.length===0 ? '📬 住所録が空です。<br>「＋ 新規登録」から<br>宛先を追加してください。' : '該当する宛先がありません')+'</div>';
+    return;
+  }
+  if (q) { list.innerHTML = ''; filtered.forEach(function(e) { list.appendChild(makeItem(e)); }); return; }
+
+  var groups = {};
+  GROUP_ORDER.forEach(function(g){ groups[g] = []; });
+  filtered.forEach(function(e){ groups[getGroup(e)].push(e); });
+
+  list.innerHTML = '';
+  GROUP_ORDER.forEach(function(g) {
+    if (currentGroupTab !== 'すべて' && currentGroupTab !== 'お気に入り' && g !== currentGroupTab) return;
+    var members = groups[g];
+    if (!members || members.length === 0) return;
+    var collapsed = collapsedGroups.has(g);
+
+    var header = document.createElement('div'); header.className = 'env-group-header';
+    var chevron = document.createElement('span'); chevron.className = 'env-group-chevron' + (collapsed ? ' collapsed' : ''); chevron.textContent = '▼';
+    var label = document.createElement('span'); label.appendChild(chevron); label.appendChild(document.createTextNode(shortGroup(g).replace(/<br>/g,'')));
+    var badge = document.createElement('span'); badge.className = 'env-group-count-badge'; badge.textContent = members.length;
+    header.appendChild(label); header.appendChild(badge);
+    header.addEventListener('click', (function(grp){ return function(){ toggleGroup(grp); }; })(g));
+
+    var container = document.createElement('div'); container.className = 'env-group-items' + (collapsed ? ' collapsed' : '');
+    members.forEach(function(e) { container.appendChild(makeItem(e)); });
+    list.appendChild(header); list.appendChild(container);
+  });
+}
+
+function selectSender(id) {
+  senderEntries.forEach(s => { s.isActive = (s.id === id); });
+  envSaveSenders();
+  renderList();
+  renderSender();
+  if (currentSize === 'lpack') {
+    if (mergedData) drawLpack(mergedData);
+    else if (envSelectedId) { var eL = envEntries.find(function(x){ return x.id===envSelectedId; }); if (eL) drawLpack(eL); }
+    else drawLpack({name:'← 宛先を選択', keisho:'', zip:'', addr1:'', addr2:'', addr3:''});
+  }
+}
+
+function selectItem(id) {
+  envSelectedId = id; mergedData = null;  
+  var e = envEntries.find(function(x){ return x.id===id; });
+  if (!e) return;
+  if (currentSize === 'lpack') { drawLpack(e); return; }
+  drawEnvelope(e);
+  document.getElementById('editBtn').style.display = 'block';
+  document.getElementById('printBtn').disabled = false;
+  renderList(); fitToScreen();
+}
+
+function drawEnvelope(e) {
+  if (currentSize === 'lpack') { drawLpack(e); return; }
+  drawZip(e.zip);
+  var rawAddr1 = e.addr1||'';
+  var buildingMatch = rawAddr1.match(/^(.+?[0-9０-９丁目番号地之])\s+(.+)$/);
+  var addr1Clean = buildingMatch ? buildingMatch[1] : rawAddr1;
+  var addr2FromAddr1 = buildingMatch ? buildingMatch[2] : '';
+  var addr = wrapNums(addr1Clean);
+  var addr2val = e.addr2&&e.addr2.trim() ? e.addr2 : addr2FromAddr1;
+  if (addr2val) addr += '<br>'+wrapNums(addr2val);
+  if (e.addr3&&e.addr3.trim()) addr += '<br>'+wrapNums(e.addr3);
+  if (!addr && e.addr) addr = e.addr.replace(/\n/g,'<br>');
+  document.getElementById('pAddr').innerHTML = addr;
+
+  document.getElementById('pName').textContent = e.name||'';
+  document.getElementById('pMigi').innerHTML = (e.migi||'').replace(/\n/g,'<br>');
+  var keisho = (e.keisho==='（なし）') ? '' : (e.keisho||'');
+  document.getElementById('pKeisho').textContent = keisho === '行' ? '行' : keisho ? '\u3000'+keisho : '';
+
+  var isReply = (e.keisho === '行');
+  var senderEl = document.getElementById('pSender');
+  if (senderEl) senderEl.style.display = isReply ? 'none' : '';
+  if (!isReply) renderSender();
+  var nameArea = document.querySelector('.name-area');
+  if (nameArea) { if (isReply) nameArea.classList.add('reply-mode'); else nameArea.classList.remove('reply-mode'); }
+
+  var nsl = document.querySelector('.name-single-line');
+  var nameEl = document.getElementById('pName');
+  if (nsl && nameEl) {
+    nsl.style.left = '50%'; nsl.style.transform = 'translateX(-50%)';
+    var cnt = e.nameCount || 1;
+    if (cnt >= 2) {
+      var baseSizes = { kaku2: 42, naga3: 28, lpack: 30 };
+      var base = baseSizes[currentSize] || 32;
+      var ratio = cnt === 2 ? 1.0 : cnt === 3 ? 0.90 : 0.80;
+      var spacing = cnt === 2 ? '-0.05em' : cnt === 3 ? '-0.08em' : '-0.10em';
+      nameEl.style.fontSize = (base * ratio) + 'pt'; nameEl.style.letterSpacing = spacing;
+    } else {
+      nameEl.style.fontSize = ''; nameEl.style.letterSpacing = '';
+    }
+  }
+}
+
+function drawLpack(e) {
+  var env = document.getElementById('envelope');
+  ['lp-zip-area','lp-label'].forEach(function(cls){ var old = env.querySelector('.'+cls); if(old) old.remove(); });
+  ['pZip','pAddr','pName','pKeisho','pMigi'].forEach(function(id){ var el=document.getElementById(id); if(el){ if(id==='pZip'||id==='pAddr')el.innerHTML=''; else el.textContent=''; } });
+  var sEl=document.getElementById('pSender'); if(sEl) sEl.style.display='none';
+  var nA=document.querySelector('.name-area'); if(nA) nA.style.display='none';
+
+  function mk(cls){ var d=document.createElement('div'); d.className=cls; return d; }
+
+  var zipArea = mk('lp-zip-area');
+  var digits = (e.zip||'').replace(/[^0-9]/g,'');
+  for(var i=0;i<7;i++){
+    if(i===3){ var hy=document.createElement('span'); hy.className='lp-zip-hyphen'; hy.textContent='-'; zipArea.appendChild(hy); }
+    var bx=mk('lp-zip-box'); bx.textContent=digits[i]||''; zipArea.appendChild(bx);
+  }
+  env.appendChild(zipArea);
+
+  var lbl = mk('lp-label');
+  var toSide = mk('lp-to-sidebar');
+  var sl1=document.createElement('span'); sl1.className='lp-to-sidebar-label'; sl1.textContent='お届け先'; toSide.appendChild(sl1);
+  var sl2=document.createElement('span'); sl2.className='lp-to-sidebar-to'; sl2.textContent='To'; toSide.appendChild(sl2);
+  var sl3=document.createElement('span'); sl3.className='lp-to-sidebar-arrow'; sl3.textContent='↑'; toSide.appendChild(sl3);
+  lbl.appendChild(toSide);
+
+  var fromSide = mk('lp-from-sidebar');
+  var fs1=document.createElement('span'); fs1.className='lp-from-sidebar-label'; fs1.textContent='ご依頼主'; fromSide.appendChild(fs1);
+  var fs2=document.createElement('span'); fs2.className='lp-from-sidebar-from'; fs2.textContent='From'; fromSide.appendChild(fs2);
+  lbl.appendChild(fromSide);
+
+  lbl.appendChild(mk('lp-hline-to')); lbl.appendChild(mk('lp-hline-hinm'));
+
+  var toAddrLbl=mk('lp-fl lp-to-addr-label'); toAddrLbl.innerHTML='おところ:<br><span class="lp-fl-en">Address</span>'; lbl.appendChild(toAddrLbl);
+  var rawAddr=e.addr1||''; var bm=rawAddr.match(/^(.+?[0-9０-９丁目番号地之])\s+(.+)$/);
+  var a1=bm?bm[1]:rawAddr; var a2=e.addr2&&e.addr2.trim()?e.addr2:(bm?bm[2]||'':'');
+  var migi=(e.migi||'').trim();
+  var line1=mk('lp-to-addr-line1'); line1.textContent=a1; lbl.appendChild(line1);
+  var line2txt = [a2, migi].filter(Boolean).join('　');
+  var line2=mk('lp-to-addr-line2'); line2.textContent=line2txt; lbl.appendChild(line2);
+
+  var toNameLbl=mk('lp-fl lp-to-name-label'); toNameLbl.innerHTML='おなまえ:<br><span class="lp-fl-en">Name</span>'; lbl.appendChild(toNameLbl);
+  var toNameLine=mk('lp-to-name-line');
+  var tnTxt=document.createElement('span'); tnTxt.className='lp-to-name-txt'; tnTxt.textContent=e.name||'';
+  var keisho=(e.keisho==='（なし）')?'':(e.keisho||'');
+  var tnKei=document.createElement('span'); tnKei.className='lp-to-keisho-txt'; tnKei.textContent=keisho==='行'?'行':keisho||'様';
+  toNameLine.appendChild(tnTxt); toNameLine.appendChild(tnKei); lbl.appendChild(toNameLine);
+
+  var toTelLbl=mk('lp-fl lp-to-tel-label'); toTelLbl.innerHTML='電話番号:<br><span class="lp-fl-en">Telephone Number</span>'; lbl.appendChild(toTelLbl);
+  var toTelLine=mk('lp-to-tel-line'); lbl.appendChild(toTelLine);
+
+  var fromAddrLbl=mk('lp-fl lp-from-addr-label'); fromAddrLbl.innerHTML='おところ:<br><span class="lp-fl-en">Address</span>'; lbl.appendChild(fromAddrLbl);
+  var fzipRow=mk('lp-from-zip-row');
+  
+  const activeSender = getActiveSender();
+  var fdigits=(activeSender&&activeSender.zip?activeSender.zip:'').replace(/[^0-9]/g,'');
+  for(var j=0;j<7;j++){
+    if(j===3){var fhy=document.createElement('span');fhy.className='lp-from-zip-hyph';fhy.textContent='-';fzipRow.appendChild(fhy);}
+    var fbx=mk('lp-from-zip-box');fbx.textContent=fdigits[j]||'';fzipRow.appendChild(fbx);
+  }
+  lbl.appendChild(fzipRow);
+
+  var fromAddr1 = activeSender ? (activeSender.addr1 || '') : '';
+  var fromAddr2 = activeSender ? (activeSender.addr2 || '') : '';
+  var fromAddrLine1=mk('lp-from-addr-line1'); fromAddrLine1.textContent=''; lbl.appendChild(fromAddrLine1);
+  var fromAddrLine2=mk('lp-from-addr-line2'); var fullFromAddr = [fromAddr1, fromAddr2].filter(Boolean).join('　');
+  fromAddrLine2.textContent=fullFromAddr; lbl.appendChild(fromAddrLine2);
+
+  var fromNameLbl=mk('lp-fl lp-from-name-label'); fromNameLbl.innerHTML='おなまえ:<br><span class="lp-fl-en">Name</span>'; lbl.appendChild(fromNameLbl);
+  var fromNameLine=mk('lp-from-name-line'); fromNameLine.textContent=activeSender?(activeSender.name||''):''; lbl.appendChild(fromNameLine);
+
+  var fromTelLbl=mk('lp-fl lp-from-tel-label'); fromTelLbl.innerHTML='電話番号:<br><span class="lp-fl-en">Telephone Number</span>'; lbl.appendChild(fromTelLbl);
+  var fromTelLine=mk('lp-from-tel-line'); fromTelLine.textContent=activeSender&&activeSender.tel?activeSender.tel:''; lbl.appendChild(fromTelLine);
+
+  var hinArea=mk('lp-hinmei-area');
+  hinArea.innerHTML='<div class="lp-hinmei-title">品名：<span style="font-family:Arial,sans-serif;font-weight:400;font-size:7.5pt;">Contents Description</span>'
+    +'<span class="lp-hinmei-warn">　品名の記載が無い場合または内容品によっては、配達が遅れる場合があります。</span></div>'
+    +'<div class="lp-hinmei-warn"><span class="lp-hinmei-cash">現金を送ることはできません。</span></div><div class="lp-hinmei-line"></div>';
+  lbl.appendChild(hinArea);
+  env.appendChild(lbl); document.getElementById('printBtn').disabled=false; fitToScreen();
+}
+
+function wrapNums(str) {
+  if (!str) return '';
+  var escaped = str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.replace(/[0-9\d]{1,4}/g, function(m){ return '<span class="num">'+m+'</span>'; });
+}
+
+function drawZip(zip) {
+  var el = document.getElementById('pZip');
+  var digits = (zip||'').replace(/[^0-9]/g,'');
+  if (currentSize === 'naga3') {
+    if (!digits) { el.innerHTML=''; return; }
+    var html = '';
+    for (var i=0; i<digits.length&&i<7; i++) {
+      if (i===3) html += '<span class="zip-hyphen">-</span>';
+      html += '<span class="zip-digit">'+digits[i]+'</span>';
+    }
+    el.innerHTML = html;
+  } else {
+    var formatted = digits.length>=7 ? digits.slice(0,3)+'-'+digits.slice(3,7) : (zip||'');
+    el.textContent = formatted ? '\u3012'+formatted : '';
+  }
+}
+
+function livePreview() {
+  if (!document.getElementById('entryModal').classList.contains('is-open')) return;
+  var zip = (document.getElementById('fZip').value||'').replace(/[^0-9]/g,'').replace(/^(\d{3})(\d{4})$/,'$1-$2');
+  var keishoVal = document.getElementById('fKeisho').value;
+  if (keishoVal === 'custom') keishoVal = document.getElementById('fKeishoCustom').value.trim();
+  drawEnvelope({
+    zip:   zip, name:  document.getElementById('fName').value, keisho: keishoVal,
+    migi:  document.getElementById('fMigi').value, addr1: document.getElementById('fAddr1').value,
+    addr2: document.getElementById('fAddr2').value, addr3: document.getElementById('fAddr3').value,
+  });
+}
+
+var SIZE_LABELS = { kaku2:'角形2号', naga3:'長形3号', lpack:'レターパックライト' };
+
+function changeSize(size) {
+  currentSize = size;
+  var env = document.getElementById('envelope');
+  env.className = 'envelope size-'+size;
+
+  if (size !== 'lpack') {
+    ['lp-zip-area','lp-label'].forEach(function(cls){ var old = env.querySelector('.'+cls); if(old) old.remove(); });
+    var na = document.querySelector('.name-area'); if (na) na.style.display = '';
+    var sEl = document.getElementById('pSender'); if (sEl) sEl.style.display = '';
+  }
+  document.getElementById('sizeLabel').textContent = SIZE_LABELS[size];
+
+  ['kaku2','naga3','lpack'].forEach(function(s) {
+    var btn = document.getElementById('btn'+s.charAt(0).toUpperCase()+s.slice(1));
+    if (btn) btn.classList.toggle('active', s===size);
+  });
+
+  if (size === 'lpack') {
+    if (mergedData) drawLpack(mergedData);
+    else if (envSelectedId) { var eL = envEntries.find(function(x){ return x.id===envSelectedId; }); if (eL) drawLpack(eL); }
+    else drawLpack({name:'← 宛先を選択', keisho:'', zip:'', addr1:'', addr2:'', addr3:''});
+  } else if (mergedData) { drawEnvelope(mergedData);
+  } else if (envSelectedId) {
+    var e = envEntries.find(function(x){ return x.id===envSelectedId; }); if (e) drawEnvelope(e);
+  }
+  setTimeout(fitToScreen, 60);
+}
+
+function fitToScreen() {
+  var container = document.getElementById('previewArea');
+  var scaler    = document.getElementById('envelopeScaler');
+  var envelope  = document.getElementById('envelope');
+  if (!container||!scaler||!envelope) return;
+  var scale = Math.min((container.clientWidth-40)/envelope.offsetWidth, (container.clientHeight-40)/envelope.offsetHeight, 1);
+  scaler.style.transform = 'scale('+scale+')';
+}
+
+function executePrint() {
+  if (envSelectedId || mergedData) {
+    const target = mergedData || envEntries.find(e => e.id === envSelectedId);
+    if (target) {
+      let printName = target.name;
+      if (mergedData) printName = '[一括] ' + printName;
+      printHistory.unshift({ id: Date.now(), date: new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}), entryId: target.id, entryName: printName, size: currentSize, sizeLabel: SIZE_LABELS[currentSize] });
+      saveHistory();
+    }
+  }
+  window.print();
+}
+
+function openHistoryModal() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  if (printHistory.length === 0) { list.innerHTML = '<div class="env-history-empty">印刷履歴はありません</div>'; } 
+  else {
+    printHistory.forEach(h => {
+      const item = document.createElement('div'); item.className = 'env-history-item';
+      item.onclick = () => { restoreFromHistory(h); };
+      item.innerHTML = `<div><div class="env-history-date">${h.date}</div><div class="env-history-name">${esc(h.entryName)}</div></div><div><span class="env-history-size">${esc(h.sizeLabel)}</span></div>`;
+      list.appendChild(item);
+    });
+  }
+  openOverlay('historyModal');
+}
+
+function closeHistoryModal() { closeOverlay('historyModal'); }
+
+function restoreFromHistory(h) {
+  closeHistoryModal();
+  const entry = envEntries.find(e => e.id === h.entryId);
+  if (entry) { changeSize(h.size); selectItem(entry.id); showToast('履歴から復元しました', 'success'); } 
+  else { showToast('該当する宛先が既に削除されているため復元できません', 'error'); }
+}
+
+function clearHistory() {
+  if (printHistory.length === 0) return;
+  showConfirm('履歴の消去', 'すべての印刷履歴を消去しますか？', function() {
+    printHistory = []; saveHistory(); openHistoryModal(); showToast('履歴を消去しました', 'warn');
+  });
+}
+
+function openEntryModal(id) {
+  id = id || null; clearErrors();
+  var e = id ? envEntries.find(function(x){ return x.id===id; }) : null;
+  document.getElementById('fId').value     = id || '';
+  document.getElementById('entryModalTitle').textContent = id ? '宛先情報の編集' : '新規登録';
+  document.getElementById('fName').value   = e ? (e.name||'')  : '';
+  
+  var keishoVal = e ? (e.keisho||'様') : '様';
+  var selElement = document.getElementById('fKeisho');
+  var customInput = document.getElementById('fKeishoCustom');
+  var isStandard = Array.from(selElement.options).some(function(opt) { return opt.value === keishoVal && opt.value !== 'custom'; });
+  if (isStandard) {
+    selElement.value = keishoVal;
+    customInput.style.display = 'none';
+    customInput.value = '';
+  } else {
+    selElement.value = 'custom';
+    customInput.style.display = 'block';
+    customInput.value = keishoVal;
+  }
+
+  document.getElementById('fMigi').value   = e ? (e.migi||'')  : '';
+  document.getElementById('fZip').value    = e ? (e.zip||'')   : '';
+  document.getElementById('fAddr1').value  = e ? (e.addr1||e.addr||'') : '';
+  document.getElementById('fAddr2').value  = e ? (e.addr2||'') : '';
+  document.getElementById('fAddr3').value  = e ? (e.addr3||'') : '';
+  document.getElementById('delBtn').style.display = id ? 'block' : 'none';
+  openOverlay('entryModal');
+  setTimeout(function(){ document.getElementById('fName').focus(); }, 50);
+}
+
+function closeEntryModal() {
+  closeOverlay('entryModal'); clearErrors();
+  if (envSelectedId) { var e = envEntries.find(function(x){ return x.id===envSelectedId; }); if (e) drawEnvelope(e); } 
+  else { document.getElementById('pName').textContent = '← 宛先を選択してください'; document.getElementById('pZip').innerHTML = ''; document.getElementById('pAddr').innerHTML = ''; document.getElementById('pMigi').innerHTML = ''; document.getElementById('pKeisho').textContent = ''; }
+}
+
+function editSelected() { if (envSelectedId) openEntryModal(envSelectedId); }
+
+function clearErrors() {
+  ['fName','fZip','fAddr1'].forEach(function(id){ document.getElementById(id).classList.remove('is-error'); });
+  ['errName','errZip','errAddr1'].forEach(function(id){ document.getElementById(id).textContent = ''; });
+}
+function setError(inputId, errId, msg) { document.getElementById(inputId).classList.add('is-error'); document.getElementById(errId).textContent = msg; }
+function validateEntry() {
+  clearErrors(); var ok = true;
+  if (!document.getElementById('fName').value.trim()) { setError('fName','errName','宛先名は必須です'); ok=false; }
+  var zip = document.getElementById('fZip').value.trim();
+  if (!zip) { setError('fZip','errZip','郵便番号は必須です'); ok=false; } 
+  else if (!/^\d{3}-?\d{4}$/.test(zip)) { setError('fZip','errZip','形式が正しくありません（例：196-0025）'); ok=false; }
+  if (!document.getElementById('fAddr1').value.trim()) { setError('fAddr1','errAddr1','住所1は必須です'); ok=false; }
+  return ok;
+}
+
+async function saveEntry() {
+  if (!validateEntry()) return;
+  var rawZip = document.getElementById('fZip').value.replace(/[^0-9]/g,'');
+  var zip = rawZip.length===7 ? rawZip.slice(0,3)+'-'+rawZip.slice(3) : rawZip;
+  var id  = document.getElementById('fId').value;
+  var keishoVal = document.getElementById('fKeisho').value;
+  if (keishoVal === 'custom') keishoVal = document.getElementById('fKeishoCustom').value.trim();
+  var data = {
+    id: id ? parseInt(id,10) : Date.now(), name: document.getElementById('fName').value.trim(), keisho: keishoVal,
+    migi: document.getElementById('fMigi').value.trim(), zip: zip, addr1: document.getElementById('fAddr1').value.trim(),
+    addr2: document.getElementById('fAddr2').value.trim(), addr3: document.getElementById('fAddr3').value.trim(), isFavorite: false
+  };
+  if (id) {
+    var idx = envEntries.findIndex(function(e){ return e.id===parseInt(id,10); });
+    if (idx!==-1) { data.isFavorite = envEntries[idx].isFavorite; envEntries[idx]=data; } else envEntries.push(data);
+  } else { envEntries.push(data); }
+  
+  // クラウド/ローカル共通セーブ処理（awaitで完了を待ってからUIを更新する）
+  await envSaveEntries(); 
+  closeEntryModal(); 
+  renderGroupTabs(); 
+  renderList(); 
+  selectItem(data.id); 
+  showToast(id ? '宛先を更新しました' : '宛先を登録しました', 'success');
+}
+
+function confirmDelete() {
+  var name = document.getElementById('fName').value.trim() || '（名称未設定）';
+  showConfirm('削除の確認', '「'+name+'」を住所録から削除します。この操作は元に戻せません。', async function(){
+    var id = parseInt(document.getElementById('fId').value, 10);
+    envEntries = envEntries.filter(function(e){ return e.id!==id; }); 
+    
+    // クラウド/ローカル共通セーブ処理（awaitで完了を待ってからUIを更新）
+    await envSaveEntries();
+    
+    if (envSelectedId===id) {
+      envSelectedId=null; document.getElementById('editBtn').style.display='none'; document.getElementById('printBtn').disabled=true;
+      document.getElementById('pName').textContent='← 宛先を選択してください'; document.getElementById('pZip').innerHTML=''; document.getElementById('pAddr').innerHTML=''; document.getElementById('pMigi').innerHTML=''; document.getElementById('pKeisho').textContent='';
+    }
+    closeEntryModal(); renderGroupTabs(); renderList(); showToast('削除しました', 'warn');
+  });
+}
+
+function onZipInput() {
+  var v = document.getElementById('fZip').value.replace(/[^0-9]/g,'').slice(0,7);
+  document.getElementById('fZip').value = v.length>3 ? v.slice(0,3)+'-'+v.slice(3) : v; livePreview();
+}
+
+async function zipToAddress(zipRaw) {
+  try {
+    const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zipRaw}`);
+    const data = await res.json();
+    if (data.results && data.results[0]) {
+      const r = data.results[0];
+      return { address: r.address1 + r.address2 + r.address3 };
+    }
+  } catch(e) {
+    console.error('zip lookup failed:', e);
+  }
+  return { address: null };
+}
+
+async function lookupZip() {
+  var raw = document.getElementById('fZip').value.replace(/[^0-9]/g,'');
+  if (raw.length!==7) { showToast('7桁の郵便番号を入力してください', 'error'); return; }
+  var btn = document.getElementById('btnZipLookup'); btn.disabled=true; btn.textContent='検索中…';
+  try {
+    var result = await zipToAddress(raw);
+    if (result.address) { document.getElementById('fAddr1').value = result.address; livePreview(); showToast('住所を自動入力しました', 'success'); } 
+    else { showToast('該当する住所が見つかりません', 'error'); }
+  } catch(e) { showToast('住所検索に失敗しました', 'error'); } 
+  finally { btn.disabled=false; btn.textContent='住所を検索'; }
+}
+
+async function lookupSenderZip() {
+  var raw = document.getElementById('sZip').value.replace(/[^0-9]/g,'');
+  if (raw.length!==7) { showToast('7桁の郵便番号を入力してください', 'error'); return; }
+  var btn = document.getElementById('btnSenderZipLookup'); btn.disabled=true; btn.textContent='検索中…';
+  try {
+    var result = await zipToAddress(raw);
+    if (result.address) { document.getElementById('sAddr1').value = result.address; showToast('住所を自動入力しました', 'success'); } 
+    else { showToast('該当する住所が見つかりません', 'error'); }
+  } catch(e) { showToast('住所検索に失敗しました', 'error'); } 
+  finally { btn.disabled=false; btn.textContent='住所を検索'; }
+}
+
+function openSenderModal(id) {
+  id = id || null;
+  const s = id ? senderEntries.find(x => x.id === id) : null;
+  document.getElementById('sId').value    = id || '';
+  document.getElementById('sName').value  = s ? (s.name  || '') : '';
+  document.getElementById('sZip').value   = s ? (s.zip   || '') : '';
+  document.getElementById('sAddr1').value = s ? (s.addr1 || '') : '';
+  document.getElementById('sAddr2').value = s ? (s.addr2 || '') : '';
+  document.getElementById('sTel').value   = s ? (s.tel   || '') : '';
+  document.getElementById('sFax').value   = s ? (s.fax   || '') : '';
+  
+  const delBtn = document.getElementById('sDelBtn');
+  if (delBtn) delBtn.style.display = id ? 'block' : 'none';
+  
+  openOverlay('senderModal'); 
+  setTimeout(function(){ document.getElementById('sName').focus(); }, 50);
+}
+function closeSenderModal() { closeOverlay('senderModal'); }
+function onSenderZipInput() { var v = document.getElementById('sZip').value.replace(/[^0-9]/g,'').slice(0,7); document.getElementById('sZip').value = v.length>3 ? v.slice(0,3)+'-'+v.slice(3) : v; }
+
+function saveSender() {
+  const idStr = document.getElementById('sId').value;
+  var raw = document.getElementById('sZip').value.replace(/[^0-9]/g,'');
+  var zip = raw.length===7 ? raw.slice(0,3)+'-'+raw.slice(3) : raw;
+  
+  var data = { 
+    name: document.getElementById('sName').value.trim(), 
+    zip: zip, 
+    addr1: document.getElementById('sAddr1').value.trim(), 
+    addr2: document.getElementById('sAddr2').value.trim(), 
+    tel: document.getElementById('sTel').value.trim(), 
+    fax: document.getElementById('sFax').value.trim() 
+  };
+
+  if (idStr) {
+    const id = parseInt(idStr, 10);
+    const idx = senderEntries.findIndex(x => x.id === id);
+    if (idx !== -1) {
+      data.id = id;
+      data.isActive = senderEntries[idx].isActive;
+      senderEntries[idx] = data;
+    }
+  } else {
+    data.id = Date.now();
+    data.isActive = senderEntries.length === 0 || !senderEntries.some(s=>s.isActive);
+    senderEntries.push(data);
+  }
+
+  envSaveSenders(); 
+  closeSenderModal(); 
+  if (currentGroupTab === '差出人') renderList();
+  renderSender(); 
+  
+  if (currentSize === 'lpack') {
+    const activeE = envSelectedId ? envEntries.find(x=>x.id===envSelectedId) : null;
+    drawLpack(activeE || {name:'← 宛先を選択', keisho:'', zip:'', addr1:'', addr2:'', addr3:''});
+  }
+
+  showToast('差出人情報を保存しました', 'success');
+}
+
+function deleteSender() {
+  const id = parseInt(document.getElementById('sId').value, 10);
+  if (!id) return;
+  showConfirm('削除の確認', 'この差出人を削除しますか？', () => {
+    senderEntries = senderEntries.filter(x => x.id !== id);
+    envSaveSenders();
+    closeSenderModal();
+    if (currentGroupTab === '差出人') renderList();
+    renderSender();
+    showToast('削除しました', 'warn');
+  });
+}
+
+function renderSender() {
+  var activeS = getActiveSender();
+  var el = document.getElementById('pSender');
+  if (!activeS.name && !activeS.addr1) { el.style.display='none'; return; }
+  
+  el.style.display = '';
+  document.getElementById('pSenderName').textContent = activeS.name || '';
+  var lines = []; var zipAddr = '';
+  if (activeS.zip) zipAddr += '〒'+activeS.zip+' '; if (activeS.addr1) zipAddr += activeS.addr1; if (activeS.addr2) zipAddr += activeS.addr2;
+  if (zipAddr) lines.push(zipAddr.trim());
+  var telFax = '';
+  if (activeS.tel) telFax += 'TEL '+activeS.tel; if (activeS.fax) telFax += (telFax ? '　' : '')+'FAX'+activeS.fax;
+  if (telFax) lines.push(telFax);
+  document.getElementById('pSenderInfo').innerHTML = lines.join('<br>');
+}
+
+/* ======== スプレッドシート（クラウド）連携用モーダル制御 ======== */
+function openCloudConfigModal() {
+  document.getElementById('gasUrlInput').value = cloudGasUrl;
+  openOverlay('cloudConfigModal');
+}
+
+function closeCloudConfigModal() {
+  closeOverlay('cloudConfigModal');
+}
+
+async function saveCloudConfig() {
+  const newUrl = document.getElementById('gasUrlInput').value.trim();
+  cloudGasUrl = newUrl;
+  
+  if (newUrl) {
+    localStorage.setItem(CLOUD_CONFIG_KEY, newUrl);
+    showToast('接続先スプレッドシートURLを設定しました。「🔄 同期」ボタンで手動同期できます。', 'success');
+  } else {
+    localStorage.removeItem(CLOUD_CONFIG_KEY);
+    updateCloudStatusUI('local');
+    showToast('クラウド接続を解除し、ローカル保存モードに変更しました', 'info');
+  }
+  
+  closeCloudConfigModal();
+  // ※ここでloadEnvEntriesWithCloudCheck()を呼ぶと、POST完了前にGETが走り空データで上書きされるため呼ばない
+}
+
+function copyGasCodeToClipboard() {
+  const codeArea = document.getElementById('gasCodeTextarea');
+  codeArea.select();
+  document.execCommand('copy');
+  showToast('GASプログラムをクリップボードにコピーしました！', 'success');
+}
+
+function showConfirm(title, msg, cb) { document.getElementById('confirmTitle').textContent = title; document.getElementById('confirmMsg').textContent = msg; confirmCb = cb; openOverlay('confirmModal'); }
+function closeConfirm() { closeOverlay('confirmModal'); confirmCb=null; }
+document.getElementById('confirmOkBtn').addEventListener('click', function(){ if (confirmCb) confirmCb(); closeConfirm(); });
+
+var CSV_COLS = ['name','keisho','migi','zip','addr1','addr2','addr3'];
+function envExportCSV() {
+  if (!envEntries.length) { showToast('エクスポートするデータがありません', 'warn'); return; }
+  var bom = '\uFEFF';
+  var rows = envEntries.map(function(e){ return CSV_COLS.map(function(k){ return '"'+(e[k]||'').replace(/"/g,'""')+'"'; }).join(','); });
+  var csv = bom + [CSV_COLS.join(',')].concat(rows).join('\r\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download = '住所録_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  showToast(envEntries.length+'件をCSVに書き出しました', 'success');
+}
+function envImportCSV(event) {
+  var file = event.target.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var text = e.target.result.replace(/^\uFEFF/,'');
+      var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
+      if (lines.length<2) { showToast('データが見つかりません', 'error'); return; }
+      var header = lines[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,''); });
+      var added=0, skipped=0;
+      for (var i=1;i<lines.length;i++) {
+        var cols = parseCSVLine(lines[i]); var row = {}; header.forEach(function(h,idx){ row[h]=cols[idx]||''; });
+        if (!row.name||!row.name.trim()) { skipped++; continue; }
+        if (envEntries.find(function(x){ return x.name===row.name&&x.zip===row.zip; })) { skipped++; continue; }
+        var obj = {id:Date.now()+i, isFavorite:false}; CSV_COLS.forEach(function(k){ obj[k]=row[k]||''; }); envEntries.push(obj); added++;
+      }
+      
+      // クラウド同期対応の保存処理
+      envSaveEntries(); 
+      renderGroupTabs(); 
+      renderList(); 
+      showToast(added+'件を取り込みました（'+skipped+'件スキップ）', added>0?'success':'warn');
+    } catch(err) { showToast('CSVの読み込みに失敗しました', 'error'); }
+    event.target.value='';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function parseCSVLine(line) {
+  var cols=[],cur='',inQ=false;
+  for (var i=0;i<line.length;i++) {
+    var c=line[i];
+    if (c==='"') { if(inQ&&line[i+1]==='"'){cur+='"';i++;} else{inQ=!inQ;} } else if (c===','&&!inQ) { cols.push(cur);cur=''; } else { cur+=c; }
+  }
+  cols.push(cur); return cols;
+}
+
+/* ================================================================
+   初期化処理とイベントリスナー
+================================================================ */
+window.addEventListener('load', function() {
+  changeSize('kaku2');
+  
+  // 初回ロード
+  loadEnvEntriesWithCloudCheck();
+  
+  // 30秒ごとに自動同期（モーダル表示中・同期中はスキップ、トーストは出さない）
+  setInterval(function() {
+    if (!cloudGasUrl) return;
+    const anyModalOpen = ['entryModal','senderModal','cloudConfigModal','historyModal','confirmModal']
+      .some(function(id){ return document.getElementById(id).classList.contains('is-open'); });
+    if (anyModalOpen || isCloudSyncing) return;
+    loadEnvEntriesWithCloudCheck(true);
+  }, 30000);
+  
+  const now=new Date();
+  document.getElementById('submitMonth').value=now.getMonth()+1;
+  renderSubmit();
+});
+
+window.addEventListener('resize', fitToScreen);
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.getElementById('confirmModal').classList.contains('is-open')) { closeConfirm(); return; }
+    if (document.getElementById('senderModal').classList.contains('is-open'))  { closeSenderModal(); return; }
+    if (document.getElementById('cloudConfigModal').classList.contains('is-open'))  { closeCloudConfigModal(); return; }
+    if (document.getElementById('historyModal').classList.contains('is-open')) { closeHistoryModal(); return; }
+    if (document.getElementById('entryModal').classList.contains('is-open'))   { closeEntryModal(); return; }
+    if (document.getElementById('coModal').classList.contains('open')) { closeSysModal('coModal'); return; }
+    if (document.getElementById('importModal').classList.contains('open')) { closeSysModal('importModal'); return; }
+  }
+  if (e.key === 'Enter' && document.getElementById('entryModal').classList.contains('is-open') && e.target.tagName !== 'BUTTON') {
+    saveEntry();
+  }
+});
+
+document.getElementById('entryModal').addEventListener('click', function(e){ if(e.target===this) closeEntryModal(); });
+document.getElementById('senderModal').addEventListener('click', function(e){ if(e.target===this) closeSenderModal(); });
+document.getElementById('cloudConfigModal').addEventListener('click', function(e){ if(e.target===this) closeCloudConfigModal(); });
+document.getElementById('historyModal').addEventListener('click', function(e){ if(e.target===this) closeHistoryModal(); });
+document.getElementById('confirmModal').addEventListener('click', function(e){ if(e.target===this) closeConfirm(); });
+</script>
+</body>
+</html>
